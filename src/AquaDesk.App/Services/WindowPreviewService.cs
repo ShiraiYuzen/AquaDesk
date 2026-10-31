@@ -18,7 +18,7 @@ public sealed record OpenWindow(IntPtr Handle, string Title, string ExePath, Dat
 /// </summary>
 public static class WindowPreviewService
 {
-    /// <summary>最多列几个窗口，太多 Dock 会被撑得老长。</summary>
+    /// <summary>预览区最多放几张卡片。按「应用」合并后仍以此封顶，太多 Dock 会被撑得老长。</summary>
     public const int MaxPreviews = 6;
 
     /// <summary>枚举时最多收这么多个候选，排序后再截到 MaxPreviews。</summary>
@@ -92,10 +92,10 @@ public static class WindowPreviewService
 
         // 按「软件启动的先后」排。同进程开多个窗口时，用第一次被看到的顺序兜底。
         // 之后把哪个窗口调到前台都不会改变这个顺序 —— 排序只跟启动时间有关。
+        // 不在这里截断：上层会按「应用」合并窗口，截断要等合并完再做（DockViewModel）。
         return found
             .OrderBy(w => w.StartedAt)
             .ThenBy(w => FirstSeen.TryGetValue(w.Handle, out var seq) ? seq : long.MaxValue)
-            .Take(MaxPreviews)
             .ToList();
     }
 

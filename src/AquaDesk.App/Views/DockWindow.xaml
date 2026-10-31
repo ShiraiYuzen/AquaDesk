@@ -797,6 +797,21 @@
                                     </Border>
 
                                     <Border CornerRadius="9" BorderBrush="#4DFFFFFF" BorderThickness="1.5" />
+
+                                    <!-- 同应用多窗口角标：合并了 N 个窗口时右上角显示 N -->
+                                    <Border CornerRadius="6.5" Width="13" Height="13"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Margin="0,1.5,1.5,0"
+                                            Background="#E6343E4A"
+                                            BorderBrush="#66FFFFFF" BorderThickness="1"
+                                            Visibility="{Binding ShowWindowCount,
+                                                         Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{Binding WindowCount}"
+                                                   FontSize="8.5" FontWeight="Bold"
+                                                   Foreground="#FFF3F5FA"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
                                 </Grid>
                             </Viewbox>
 

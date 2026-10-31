@@ -351,8 +351,29 @@ public sealed class DockViewModel : INotifyPropertyChanged
         AppendTail();
     }
 
+    /// <summary>按应用合并后的一个预览组：同一个 exe 的所有窗口共用一张预览。</summary>
+    private sealed class PreviewGroup
+    {
+        public PreviewGroup(string key, OpenWindow primary)
+        {
+            Key = key;
+            Primary = primary;
+            Windows.Add(primary);
+        }
+
+        public string Key { get; }
+
+        /// <summary>代表窗口：组里最早启动的那个，缩略图 / 右键菜单都认它。</summary>
+        public OpenWindow Primary { get; }
+
+        public List<OpenWindow> Windows { get; } = new();
+    }
+
     /// <summary>
-    /// 把窗口预览同步成给定的一批。集合没变就什么都不做（缩略图由调用方单独刷）。
+    /// 把窗口预览同步成给定的一批，**按应用合并**：同一个 exe 的多个窗口
+    /// 合成一张预览（macOS Dock 的做法），不管开多少个窗口，预览格数都以
+    /// 「应用数」封顶，Dock 不会被撑爆；合并的预览带角标，点开弹窗口列表。
+    /// 集合没变就什么都不做（缩略图由调用方单独刷）。
     /// </summary>
     public bool SyncWindowPreviews(IReadOnlyList<OpenWindow> windows)
     {
@@ -366,29 +387,46 @@ public sealed class DockViewModel : INotifyPropertyChanged
             return true;
         }
 
-        var wanted = windows.Take(WindowPreviewService.MaxPreviews).ToList();
+        // 分组：exe 读不到的（提权进程偶尔会这样）按句柄单独一组，别误合并
+        var groups = new List<PreviewGroup>();
 
-        var sameHandles = _previews.Count == wanted.Count;
+        foreach (var window in windows)
+        {
+            var key = string.IsNullOrEmpty(window.ExePath)
+                ? "\0" + window.Handle
+                : window.ExePath.ToLowerInvariant();
 
-        if (sameHandles)
+            var group = groups.Find(g => g.Key == key);
+            if (group is null) groups.Add(new PreviewGroup(key, window));
+            else group.Windows.Add(window);
+        }
+
+        var wanted = groups.Take(WindowPreviewService.MaxPreviews).ToList();
+
+        // 集合没变的判定：代表窗口一样 + 每组窗口数一样。
+        // 组里开/关一个非代表窗口也会改变窗口数，走重建（预览内容确实变了）。
+        var sameSets = _previews.Count == wanted.Count;
+
+        if (sameSets)
         {
             for (var i = 0; i < wanted.Count; i++)
             {
-                if (_previews[i].WindowHandle != wanted[i].Handle)
+                if (_previews[i].WindowHandle != wanted[i].Primary.Handle
+                    || _previews[i].WindowCount != wanted[i].Windows.Count)
                 {
-                    sameHandles = false;
+                    sameSets = false;
                     break;
                 }
             }
         }
 
-        if (sameHandles)
+        if (sameSets)
         {
             // 顺序没变，只把标题同步一下（浏览器切标签页会改标题）。
             // 标题变了不重建 —— 重建会把缩略图一起丢掉，白抓一遍还闪。
             for (var i = 0; i < wanted.Count; i++)
             {
-                _previews[i].Name = wanted[i].Title;
+                _previews[i].Name = wanted[i].Primary.Title;
             }
 
             return false;
@@ -396,15 +434,20 @@ public sealed class DockViewModel : INotifyPropertyChanged
 
         _previews.Clear();
 
-        foreach (var window in wanted)
+        foreach (var group in wanted)
         {
+            var primary = group.Primary;
+
             // 顺手把 exe 图标取出来当兜底：提权窗口（任务管理器）抓不了缩略图，
             // 界面至少显示应用图标，而不是一个空框。
-            var icon = string.IsNullOrWhiteSpace(window.ExePath)
+            var icon = string.IsNullOrWhiteSpace(primary.ExePath)
                 ? null
-                : IconExtractor.FromShortcut(window.ExePath);
+                : IconExtractor.FromShortcut(primary.ExePath);
 
-            _previews.Add(DockItem.CreateWindowPreview(window.Title, window.Handle, icon));
+            _previews.Add(DockItem.CreateWindowPreview(
+                primary.Title, primary.Handle, icon,
+                group.Windows.Count,
+                group.Windows.Select(w => (w.Handle, w.Title)).ToList()));
         }
 
         RebuildTail();
