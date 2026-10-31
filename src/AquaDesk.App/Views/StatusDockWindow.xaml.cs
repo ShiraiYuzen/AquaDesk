@@ -42,6 +42,14 @@ public partial class StatusDockWindow : Window
     private readonly AppSettings _settings;
     private readonly DockWindow _dock;
 
+    /// <summary>
+    /// 输入法状态那一格当前显不显示。RefreshInputMethod 里根据
+    /// InputState.GetBadge() 更新它，ApplyRowLayout 用这个字段而不是读
+    /// InputArea.Visibility —— 后者会在 FillRow 清空+重加子元素时被绑定
+    /// 时序 / 本地值覆盖搞得不可靠。
+    /// </summary>
+    private bool _inputStateVisible;
+
     private readonly DispatcherTimer _timer = new(DispatcherPriority.Background)
     {
         Interval = TimeSpan.FromSeconds(1)
@@ -227,55 +235,90 @@ public partial class StatusDockWindow : Window
     /// <summary>
     /// 图标排两行，规则：数量是偶数就上下对半；是奇数就上排多一个、下排居中。
     ///
-    /// 「电量」那块按两格算（它要装电池 + 百分比），所以格数 = 图标数 + 1：
-    /// 9 个图标 → 上 6 格 / 下 4 格，两行差 2 格，居中正好偏 1 整格，上下对得齐；
-    /// 8 个（后台程序关掉）→ 上 5 格 / 下 4 格，差 1 格，居中后错半格。
+    /// 「电量」那块按两格算（它要装电池 + 百分比），所以格数 = 图标数 + 1。
     ///
     /// 之所以要算而不是把行列写死在 XAML 里：后台程序那颗按钮能在设置里关掉，
     /// 写死的话关掉之后上排会空一格，下面那排也不再居中。
+    ///
+    /// 两排各自严格居中（FillRow 里 HorizontalAlignment=Center），
+    /// 都压在胶囊同一条中心线上，所以无论上下各几个图标视觉都居中。
     /// </summary>
     private void ApplyRowLayout()
     {
         // 电量那块：显示百分比时是「电池 + 文字」，要占两格；只画电池时一格就够
         var batteryWide = _settings.ShowBatteryPercent;
 
-        var all = new (FrameworkElement Element, bool Wide)[]
+        // 可见性一律读配置字段 + 明确的输入法状态字段，绝不读 Element.Visibility。
+        // 之前读 Visibility 踩过一个坑：FillRow 清空 TopRow.Children 再重加时，
+        // BrandIcon / WindowsIcon 的 Visibility 绑定会被本地值覆盖成 Visible，
+        // 结果「关掉开关后重启，图标又冒出来」，分行也从 6 项错算成 8 项。
+        var all = new (FrameworkElement Element, bool Wide, bool Visible)[]
         {
-            (BrandIcon, false),         // 设置
-            (WindowsIcon, false),       // 电源
-            (BackgroundIcon, false),    // 后台程序（可关）
-            (BatteryPanel, batteryWide),// 电量
-            (WifiIcon, false),
-            (BluetoothIcon, false),
-            (VolumeIcon, false),
-            (InputArea, false),         // 输入法状态
-            (LayoutArea, false),        // 键盘布局
+            (BrandIcon, false, _settings.ShowBrandIcon),
+            (WindowsIcon, false, _settings.ShowWindowsIcon),
+            (BackgroundIcon, false, _settings.ShowBackgroundAppsButton),
+            (BatteryPanel, batteryWide, true),
+            (WifiIcon, false, true),
+            (BluetoothIcon, false, true),
+            (VolumeIcon, false, true),
+            (InputArea, false, _inputStateVisible),
+            (LayoutArea, false, true),
         };
 
-        var items = all.Where(item => item.Element.Visibility == Visibility.Visible).ToList();
+        var items = all.Where(item => item.Visible).ToList();
         if (items.Count == 0) return;
+
+        // 同步一下元素的实际 Visibility，让 XAML 布局和这里的分行保持一致。
+        // （绑定正常情况下已经对了，这里只是兜底，防止绑定和字段脱节。）
+        foreach (var (element, _, visible) in all)
+        {
+            element.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        }
 
         // 两行都先清空。元素只是脱离容器，实例和事件都还在，紧接着按新行放回去。
         TopRow.Children.Clear();
         BottomRow.Children.Clear();
 
         var topCount = (items.Count + 1) / 2;   // 奇数时上排多拿一个
-        FillRow(TopRow, items.Take(topCount));
-        FillRow(BottomRow, items.Skip(topCount));
+        var top = items.Take(topCount).ToList();
+        var bottom = items.Skip(topCount).ToList();
+
+        var topCells = top.Sum(item => item.Wide ? 2 : 1);
+        var bottomCells = bottom.Sum(item => item.Wide ? 2 : 1);
+
+        // 两排共用同一套列：列数取宽的那排，窄的那排两侧补空格。
+        // 这样两排的列索引天然一一对应 ——「下排图标压在上排图标正下方」是硬保证，
+        // 而不是靠两排各自居中碰运气。各自居中的话，两排格数差为奇数时
+        // （比如上排 4 格含跨格的电量、下排 3 格）下排会整体错开半格 13.5px，
+        // 看着就是「每个图标都对不上」。
+        var totalCells = Math.Max(topCells, bottomCells);
+
+        // 两排各自严格居中：不再用共享列补空格把窄排推到与宽排同列。
+        // 之前用 lead 补空格时，格数差为奇数（比如上 4 格 / 下 3 格）窄排会
+        // 整体偏半格（左空 1 格右空 0 格），看着就是「下排没居中」。
+        // 改成每排按自己的内容宽居中后，两排都压在胶囊同一条中心线上。
+        FillRow(TopRow, top.Select(t => (t.Element, t.Wide)).ToList());
+        FillRow(BottomRow, bottom.Select(t => (t.Element, t.Wide)).ToList());
 
         // 内容宽度变了，窗口跟着收 —— 不然关掉百分比后两边会空出一大块。
         // 改 Width 会触发 SizeChanged，FollowDock 会重新跟位并让 Dock 重新居中。
-        var wantedWidth = TopRow.Width + RowMargin * 2 + ShadowSide * 2;
+        var wantedWidth = totalCells * CellWidth + RowMargin * 2 + ShadowSide * 2;
         if (Math.Abs(Width - wantedWidth) > 0.5) Width = wantedWidth;
+
+        App.Trace($"胶囊分行：{items.Count} 项 → 上 {top.Count}/{topCells} 格、下 {bottom.Count}/{bottomCells} 格，共 {totalCells} 格");
     }
 
     /// <summary>
     /// 按 27px 一格重建列，宽的那项合并两格。
-    /// 行宽收成自己的实际宽度（不铺满父容器），父容器一居中，「下排居中」就出来了。
+    /// 只放内容列，宽度由内容决定，靠 HorizontalAlignment=Center 让整排在
+    /// StackPanel 里居中 —— 两排共用同一条中心线，各排按自己的内容宽居中。
     /// </summary>
-    private static void FillRow(Grid row, IEnumerable<(FrameworkElement Element, bool Wide)> items)
+    private static void FillRow(
+        Grid row,
+        IReadOnlyList<(FrameworkElement Element, bool Wide)> items)
     {
         row.ColumnDefinitions.Clear();
+        row.Width = double.NaN;
 
         var column = 0;
         foreach (var (element, wide) in items)
@@ -293,15 +336,16 @@ public partial class StatusDockWindow : Window
             column += span;
         }
 
-        row.Width = column * CellWidth;
         row.HorizontalAlignment = HorizontalAlignment.Center;
     }
 
     private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        // 这两个都会改图标数量 / 宽度，行和窗口尺寸都要重算
+        // 这几个都会改图标数量 / 宽度，行和窗口尺寸都要重算
         if (e.PropertyName is not (nameof(AppSettings.ShowBackgroundAppsButton)
-            or nameof(AppSettings.ShowBatteryPercent)))
+            or nameof(AppSettings.ShowBatteryPercent)
+            or nameof(AppSettings.ShowBrandIcon)
+            or nameof(AppSettings.ShowWindowsIcon)))
         {
             return;
         }
@@ -397,14 +441,30 @@ public partial class StatusDockWindow : Window
     {
         var badge = InputState.GetBadge();
 
-        if (string.IsNullOrEmpty(badge))
-        {
-            InputStateText.Visibility = Visibility.Collapsed;
-        }
-        else
+        // 英文（或当前输入法没有中 / 英徽标）时这一格就没内容了，得把整个 InputArea 收起来。
+        // 只收 InputStateText 不够：网格里那一格还占着位置，5 + 4 的布局会留个空洞，
+        // 看着就是「切英文后只剩 8 个图标，下排也不对齐」。
+        var hadState = _inputStateVisible;
+        var hasState = !string.IsNullOrEmpty(badge);
+        _inputStateVisible = hasState;
+
+        if (hasState)
         {
             InputStateText.Text = badge;
             InputStateText.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            InputStateText.Visibility = Visibility.Collapsed;
+        }
+
+        InputArea.Visibility = hasState ? Visibility.Visible : Visibility.Collapsed;
+
+        // 可见项数量变了要重新分行：9 个是 5 + 4，8 个是 4 + 4。
+        // 首次 OnLoaded 里紧接着就会排一次，这里只处理 Loaded 之后的切换。
+        if (IsLoaded && hasState != hadState)
+        {
+            Dispatcher.BeginInvoke(ApplyRowLayout, DispatcherPriority.Background);
         }
 
         var visual = InputMethodIcon.GetCurrent();

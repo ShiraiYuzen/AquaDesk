@@ -65,6 +65,18 @@ public static class SettingsStore
                 Save(settings);
             }
 
+            // 一次性迁移 3：这两个开关的含义又变回来了，但对象换成状态胶囊 ——
+            // 0.4.9 起 Dock 上这两颗彻底不摆（DockViewModel.IsSystemEnabled 恒 false），
+            // 开关只管胶囊上显不显示。上一轮迁移把它们置成了 false，
+            // 不迁移的话升级后胶囊上就既没有设置、也没有电源入口了。
+            if (settings.SettingsVersion < 3)
+            {
+                settings.ShowWindowsIcon = true;
+                settings.ShowBrandIcon = true;
+                settings.SettingsVersion = 3;
+                Save(settings);
+            }
+
             return settings;
         }
         catch (Exception ex)

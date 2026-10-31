@@ -220,8 +220,7 @@
             <!-- 图标行：上排 5 项、下排 4 项，共用一套 27px 列网格
                  以前每项各自带 margin，宽窄不一（电量那块最宽），两排又各自居中，
                  结果排成了两套间距，上下看着参差。现在列宽写死、图标在格内居中。
-                 上排 6 格（电量跨 2 格，它要装电池 + 百分比），下排 4 格居中 ——
-                 正好偏 1 整格，压在上排第 2~5 格上，上下对齐。 -->
+                 上下两排各自按内容宽严格居中，压在胶囊同一条中心线上。 -->
             <StackPanel VerticalAlignment="Center"
                         HorizontalAlignment="Center"
                         Margin="12,0">
@@ -237,12 +236,14 @@
                         <ColumnDefinition Width="27" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.4.0 挪到最前面 -->
+                    <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.4.0 挪到最前面；
+                         0.4.9 起开关 ShowBrandIcon 也管这一格的显隐（Dock 上不再摆） -->
                     <Grid x:Name="BrandIcon" Grid.Column="0"
                           Width="16" Height="9.5"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           Cursor="Hand"
                           ToolTip="AquaDesk 设置"
+                          Visibility="{Binding ShowBrandIcon, Converter={StaticResource BoolToVisibility}}"
                           MouseLeftButtonUp="OnBrandClick">
                         <Rectangle Fill="Transparent" />
                         <!-- 玻璃胶囊（描边）+ 三个点，跟 Dock 那块品牌图标的造型对齐 -->
@@ -260,12 +261,13 @@
                         </StackPanel>
                     </Grid>
 
-                    <!-- Windows 入口：左键弹电源菜单 -->
+                    <!-- Windows 入口：左键弹电源菜单（同上，显隐由 ShowWindowsIcon 管） -->
                     <Grid x:Name="WindowsIcon" Grid.Column="1"
                           Width="14" Height="13"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           Cursor="Hand"
                           ToolTip="电源"
+                          Visibility="{Binding ShowWindowsIcon, Converter={StaticResource BoolToVisibility}}"
                           MouseLeftButtonUp="OnWindowsClick">
                         <Rectangle Fill="Transparent" />
                         <!-- 四个方块：左上最亮、右下略暗，和 Dock 上那块图标同一套光感 -->
@@ -367,7 +369,7 @@
                 </Grid>
 
                 <!-- 下排：蓝牙 / 音量 / 输入法状态 / 键盘布局
-                     四格居中 = 相对上排右移一格，正好落在上排第 2~5 格上 -->
+                     按自身内容宽在胶囊里严格居中，和上排共用同一条中心线 -->
                 <Grid x:Name="BottomRow" Height="16" HorizontalAlignment="Center" Margin="0,7,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="27" />

@@ -133,13 +133,8 @@ public partial class DockWindow : Window
 
         switch (item.Kind)
         {
-            case DockItemKind.Brand:
-                settings.ShowBrandIcon = false;
-                break;
-
-            case DockItemKind.Windows:
-                settings.ShowWindowsIcon = false;
-                break;
+            // Brand / Windows 两颗已经不在 Dock 上摆了（入口在状态胶囊），
+            // 拖不到，也就没有「拖出去就关掉」这回事。
 
             case DockItemKind.Launchpad:
                 settings.ShowLaunchpadIcon = false;
@@ -460,9 +455,8 @@ public partial class DockWindow : Window
         }
 
         // 系统图标显隐：整行重建，宽度和位置都得跟着重算
-        if (e.PropertyName is nameof(AppSettings.ShowBrandIcon)
-            or nameof(AppSettings.ShowWindowsIcon)
-            or nameof(AppSettings.ShowLaunchpadIcon)
+        // （ShowBrandIcon / ShowWindowsIcon 不在这里 —— 它们现在只管状态胶囊，Dock 上不摆）
+        if (e.PropertyName is nameof(AppSettings.ShowLaunchpadIcon)
             or nameof(AppSettings.ShowTrashIcon)
             or nameof(AppSettings.ShowComputerIcon))
         {
