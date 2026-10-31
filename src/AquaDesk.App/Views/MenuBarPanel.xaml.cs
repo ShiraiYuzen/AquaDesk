@@ -471,7 +471,11 @@ public partial class MenuBarPanel : UserControl
         var button = new Button
         {
             Style = (Style)FindResource("RowButton"),
-            Tag = layout
+            Tag = layout,
+            // 别抢键盘焦点：焦点一旦落到面板的 Button 上，Activate 里发的
+            // WM_INPUTLANGCHANGEREQUEST 就切不到用户真正在用的应用了。
+            // Focusable=false 只挡键盘焦点，鼠标点击照常触发 Click。
+            Focusable = false
         };
 
         button.Click += OnKeyboardRowClick;

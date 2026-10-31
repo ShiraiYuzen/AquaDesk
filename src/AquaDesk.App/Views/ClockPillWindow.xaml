@@ -56,6 +56,10 @@
                                   Opacity="0.32" Color="#000000" />
             </Grid.Effect>
 
+            <!-- 拖动命中层：铺满整个胶囊，透明但可命中，让「可拖动」时整块都能拖。
+                 放在最底层，不挡上面的文字和播放按钮。 -->
+            <Rectangle Fill="Transparent" />
+
             <!-- ① 底色：透明度跟 Dock 走同一个设置 -->
             <Rectangle x:Name="Tint"
                        RadiusX="15" RadiusY="15"
