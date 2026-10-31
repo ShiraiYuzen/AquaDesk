@@ -149,7 +149,7 @@ gh release create v0.3.3 \
 
 ## 许可证
 
-[MIT](LICENSE) © 2026 王一凡
+[MIT](LICENSE) © 2026 ShiraiYuzen
 
 可以自由使用、修改、商用、再分发，保留版权声明即可。
 
