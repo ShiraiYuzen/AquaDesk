@@ -17,6 +17,7 @@ public sealed record BackgroundApp(
     IntPtr Window,
     bool Minimized,
     bool TrayOnly,
+    bool Foreground,
     ImageSource? Icon);
 
 /// <summary>
@@ -52,6 +53,7 @@ public static class BackgroundApps
         // 最小化的排前面（这是最想点的那批），其次被盖住的窗口，最后是托盘程序
         list.AddRange(windows
             .OrderByDescending(w => w.Minimized)
+            .ThenByDescending(w => w.Foreground)
             .ThenBy(w => w.Name, StringComparer.CurrentCultureIgnoreCase));
 
         list.AddRange(trayOnly);
@@ -96,7 +98,12 @@ public static class BackgroundApps
         IntPtr hwnd, IntPtr foreground,
         Dictionary<uint, BackgroundApp> byPid, HashSet<string> windowNames)
     {
-        if (hwnd == foreground) return;
+        // 前台那个窗口也算进来，只是标成「当前前台」。
+        // 早先是直接 return 掉的 —— 那时以为「前台 ≠ 后台」，但胶囊是 WS_EX_NOACTIVATE，
+        // 点它不会抢焦点，用户刚用过的程序会一直是前台：结果就是那个程序从列表里彻底消失
+        // （0.4.4 实测：同时开着 WorkBuddy 和 WorkBuddy AI，只列出最小化的后者）。
+        var isForeground = hwnd == foreground;
+
         if (!NativeMethods.IsWindowVisible(hwnd) && !NativeMethods.IsIconic(hwnd)) return;
 
         if (NativeMethods.GetWindowTextLengthW(hwnd) == 0) return;
@@ -133,8 +140,8 @@ public static class BackgroundApps
 
         var name = Path.GetFileNameWithoutExtension(path);
 
-        // 一个进程可能有多个窗口：优先留最小化的那个
-        if (byPid.TryGetValue(pid, out var existing) && existing.Minimized && !minimized) return;
+        // 一个进程可能有多个窗口：优先留最小化的那个；但前台那个更值得留，别被最小化的兄弟窗口顶掉
+        if (byPid.TryGetValue(pid, out var existing) && existing.Minimized && !minimized && !isForeground) return;
 
         byPid[pid] = new BackgroundApp(
             pid,
@@ -144,6 +151,7 @@ public static class BackgroundApps
             hwnd,
             minimized,
             TrayOnly: false,
+            Foreground: isForeground,
             Icon: null);
     }
 
@@ -240,6 +248,7 @@ public static class BackgroundApps
                 IntPtr.Zero,
                 Minimized: false,
                 TrayOnly: true,
+                Foreground: false,
                 Icon: DecodeSnapshot(info.Entry.Snapshot)));
         }
 

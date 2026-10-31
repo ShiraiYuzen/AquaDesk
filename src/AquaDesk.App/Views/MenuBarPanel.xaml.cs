@@ -1016,8 +1016,8 @@ public partial class MenuBarPanel : UserControl
         BackgroundCount.Text = apps.Count == 0 ? string.Empty : $"{apps.Count} 个";
 
         BackgroundHint.Text = apps.Count == 0
-            ? "没有正在后台运行的程序"
-            : "最小化的窗口点一下切回去；托盘程序只能结束";
+            ? "没有正在运行的程序"
+            : "点一行切到前台；托盘程序只能结束";
 
         foreach (var app in apps)
         {
@@ -1070,7 +1070,7 @@ public partial class MenuBarPanel : UserControl
 
         text.Children.Add(new TextBlock
         {
-            Text = app.TrayOnly ? app.Detail : (app.Minimized ? $"最小化 · {app.Detail}" : app.Detail),
+            Text = DescribeBackground(app),
             Foreground = new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)),
             FontSize = 10.5,
             Margin = new Thickness(0, 1, 0, 0),
@@ -1088,7 +1088,7 @@ public partial class MenuBarPanel : UserControl
             VerticalAlignment = VerticalAlignment.Center
         };
 
-        if (!app.TrayOnly) actions.Children.Add(CreateSwitchHint());
+        if (!app.TrayOnly) actions.Children.Add(CreateSwitchHint(app.Foreground));
         actions.Children.Add(CreateEndButton(app));
 
         Grid.SetColumn(actions, 2);
@@ -1098,10 +1098,20 @@ public partial class MenuBarPanel : UserControl
         return row;
     }
 
-    /// <summary>窗口程序右边放一个弱提示，点整行就能切过去；结束按钮另外给。</summary>
-    private static FrameworkElement CreateSwitchHint() => new TextBlock
+    /// <summary>行副标题：托盘程序显示登记表里的 tooltip，窗口程序显示「最小化 / 当前前台 + 标题」。</summary>
+    private static string DescribeBackground(BackgroundApp app)
     {
-        Text = "切到前台",
+        if (app.TrayOnly) return app.Detail;
+        if (app.Minimized) return $"最小化 · {app.Detail}";
+        if (app.Foreground) return $"当前前台 · {app.Detail}";
+
+        return app.Detail;
+    }
+
+    /// <summary>窗口程序右边放一个弱提示，点整行就能切过去；结束按钮另外给。</summary>
+    private static FrameworkElement CreateSwitchHint(bool foreground) => new TextBlock
+    {
+        Text = foreground ? "已在前台" : "切到前台",
         Foreground = new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)),
         FontSize = 10.5,
         VerticalAlignment = VerticalAlignment.Center,
