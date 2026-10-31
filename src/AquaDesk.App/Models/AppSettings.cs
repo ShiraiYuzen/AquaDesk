@@ -81,8 +81,12 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _autoStart;
     private bool _hideTaskbar;
     private bool _hideDesktopIcons;
-    private bool _showBrandIcon;
-    private bool _showWindowsIcon;
+    // 0.4.9 起这两个开关的意思变了：管的是「状态胶囊上显不显示」，
+    // Dock 上这两颗已经彻底不摆（见 DockViewModel.IsSystemEnabled）。
+    // 所以默认是 true —— 它们是胶囊上唯一能进设置 / 弹电源的入口。
+
+    private bool _showBrandIcon = true;
+    private bool _showWindowsIcon = true;
     private bool _showLaunchpadIcon = true;
     private bool _showTrashIcon = true;
     private bool _showBackgroundAppsButton = true;
@@ -533,8 +537,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     // ---------------- Dock 图标显示 ----------------
 
     /// <summary>
-    /// 最左边那个 AquaDesk 品牌图标（点它开设置）。
-    /// 0.3.11 起这个入口默认搬到状态胶囊右下角，Dock 上默认不显示。
+    /// 状态胶囊上那个三点品牌图标（点它开设置）。
+    /// 0.4.9 起只管胶囊，Dock 上彻底不摆这两颗了。
     /// </summary>
     public bool ShowBrandIcon
     {
@@ -543,8 +547,8 @@ public sealed class AppSettings : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// Windows 开始菜单图标（点它弹电源菜单）。
-    /// 0.3.11 起默认搬到状态胶囊上排最左边，Dock 上默认不显示。
+    /// 状态胶囊上那个四格 Windows 标志（点它弹锁定 / 睡眠 / 关机 / 重启）。
+    /// 0.4.9 起只管胶囊。
     /// </summary>
     public bool ShowWindowsIcon
     {

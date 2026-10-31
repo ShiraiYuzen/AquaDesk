@@ -825,7 +825,7 @@
 
                         <StackPanel Style="{StaticResource Section}" Margin="4,26,0,9">
                             <Border Style="{StaticResource SectionBar}" />
-                            <TextBlock Text="固定入口" Style="{StaticResource SectionHeader}" />
+                            <TextBlock Text="胶囊入口" Style="{StaticResource SectionHeader}" />
                         </StackPanel>
 
                         <Border Style="{StaticResource Card}">
@@ -837,8 +837,8 @@
                                                   HorizontalAlignment="Right"
                                                   IsChecked="{Binding ShowBrandIcon, Mode=TwoWay}" />
                                     </Grid>
-                                    <TextBlock Text="Dock 最左边那个品牌图标。入口已经搬到状态胶囊右下角，Dock 上默认不摆"
-                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" />
+                                    <TextBlock Text="状态胶囊上那个三点图标，点它打开设置。关掉后 Dock 上也不会再出现 —— 右键 Dock 玻璃条空白处照样能进"
+                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" TextWrapping="Wrap" />
                                 </StackPanel>
 
                                 <Border Style="{StaticResource CardDivider}" />
@@ -850,8 +850,8 @@
                                                   HorizontalAlignment="Right"
                                                   IsChecked="{Binding ShowWindowsIcon, Mode=TwoWay}" />
                                     </Grid>
-                                    <TextBlock Text="Dock 上的四格图标，左键弹出锁定 / 睡眠 / 关机 / 重启。入口已经搬到状态胶囊上排最左，Dock 上默认不摆"
-                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" />
+                                    <TextBlock Text="状态胶囊上那个四格图标，左键弹出锁定 / 睡眠 / 关机 / 重启"
+                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" TextWrapping="Wrap" />
                                 </StackPanel>
 
                                 <Border Style="{StaticResource CardDivider}" />

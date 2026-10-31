@@ -92,8 +92,11 @@ public sealed class DockViewModel : INotifyPropertyChanged
 
     private bool IsSystemEnabled(string kind) => kind switch
     {
-        SystemBrand => Settings.ShowBrandIcon,
-        SystemWindows => Settings.ShowWindowsIcon,
+        // 这两个入口已经搬到状态胶囊上，Dock 上永远不摆。
+        // ShowBrandIcon / ShowWindowsIcon 现在管的是胶囊上显不显示，别再拿到这里用。
+        // 老配置里如果还残留这两项，RefreshStructure 会按 false 把它们剔掉。
+        SystemBrand => false,
+        SystemWindows => false,
         SystemLaunchpad => Settings.ShowLaunchpadIcon,
         SystemComputer => Settings.ShowComputerIcon,
         _ => false

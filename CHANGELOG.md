@@ -6,6 +6,60 @@
 
 ---
 
+## [0.4.11] - 2026-10-31
+
+### 修复
+
+- **下排图标没居中**。0.4.10 用「共享列 + 补空格」对齐上下两排，格数差为奇数时
+  （上 4 格 / 下 3 格）窄排会整体偏半格 13.5px（左空 1 格右空 0 格），视觉上就是
+  「下排没居中」。现在 `FillRow` 去掉补空格，改成每排按自身内容宽居中
+  （`HorizontalAlignment=Center`），两排都压在胶囊同一条中心线上，
+  无论上下各几个图标都严格居中。
+
+---
+
+## [0.4.10] - 2026-10-31
+
+### 修复
+
+- **图标分行错位**。两个根因一起修掉：
+
+  1. **可见性读了 `Element.Visibility`，不可靠**。`ApplyRowLayout` 里 `FillRow` 会
+     `TopRow.Children.Clear()` 再重加子元素，`BrandIcon` / `WindowsIcon` 的 `Visibility`
+     绑定（`{Binding ShowBrandIcon}`）在元素被摘出再挂回时会被本地值覆盖成 `Visible`，
+     导致「关掉开关后重启，图标又冒出来」，可见项从 6 错算成 8。现在一律读配置字段
+     （`ShowBrandIcon` / `ShowWindowsIcon` / `ShowBackgroundAppsButton` /
+     `ShowBatteryPercent`）＋ 明确的 `_inputStateVisible` 字段，并在分行时把这些值
+     写回 `element.Visibility` 兜底。
+  2. **两排各自居中，格数差为奇数时必然错开半格**。之前每排独立 `FillRow` + 各自居中，
+     上排 4 格、下排 3 格时，下排 3 个图标各自居中的中心对不上上排 4 个图标的中心，
+     差半格（13.5px）。现在两排共用同一套 `totalCells` 列，窄的那排算 `lead` 补空格，
+     列索引天然一一对应 —— 下排图标硬保证压在上排图标正下方。
+
+- 输入法状态改用 `_inputStateVisible` 字段跟踪（原来读 `InputArea.Visibility` 也踩同样的坑）。
+
+## [0.4.9] - 2026-10-31
+
+### 修复
+
+- **两个入口开关打开了会往 Dock 上再冒一颗**。`ShowBrandIcon` / `ShowWindowsIcon` 原本管的是
+  Dock 上的显隐，可这两颗 0.3.11 就搬到状态胶囊上了 —— 打开开关等于同一个功能两处都有。
+  现在 `DockViewModel.IsSystemEnabled` 对 Brand / Windows 恒返回 false（Dock 上彻底不摆），
+  开关改为控制**胶囊上那一格显不显示**，默认开。
+  配置迁移 `SettingsVersion = 3`：上一轮迁移把它们置成过 false，不迁移的话升级后胶囊上
+  会既没有设置、也没有电源入口。
+- **切到英文键盘后胶囊只剩「8 个」且不对齐**。`InputState.GetBadge()` 在英文键盘下返回 null，
+  原来的代码只把格子里那行文字 `Collapsed`，`InputArea` 本身还占着格子 ——
+  可见项从 9 变 8，布局却还是 5 + 4，下排空出一格。
+  现在连 `InputArea` 一起收，并重算分行：9 个是 5 + 4，8 个是 4 + 4。
+
+### 变更
+
+- 设置页那一节「固定入口」改名「胶囊入口」，两行说明都写明「这个开关管的是胶囊」，
+  并提示关掉后右键 Dock 玻璃条空白处仍能进设置。
+- `DockWindow` 不再因为这两个属性变化而 `RefreshStructure`（Dock 上已经没有它们），
+  `TurnOffSystemIcon` 里对应的两个 case 也删了 —— 拖不到的图标谈不上「拖出去就关掉」。
+
 ## [0.4.8] - 2026-10-31
 
 ### 变更

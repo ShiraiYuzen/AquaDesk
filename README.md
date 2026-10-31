@@ -3,7 +3,7 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.4.8** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.4.11** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
 ---
 
@@ -43,6 +43,9 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.3.3](versions/v0.3.3/README.md) | 2026-10-31 | 自启修复 | 关不掉的开机自启终于关掉了 |
 | [v0.4.3](versions/v0.4.3/README.md) | 2026-10-31 | 胶囊重构 | 折射下线、托盘删除、正在播放、图标重做（含 0.3.4~0.4.3 十二版） |
 | [v0.4.8](versions/v0.4.8/README.md) | 2026-10-31 | 设置页换框架 | 保存按钮、多选一改下拉框、Dock 让开提速到 ~96ms |
+| [v0.4.9](versions/v0.4.9/README.md) | 2026-10-31 | 入口开关修复 | 设置/电源开关改管胶囊、切英文后图标对齐 |
+| [v0.4.10](versions/v0.4.10/README.md) | 2026-10-31 | 图标分行修复 | 可见性读配置字段、共享列硬对齐 |
+| [v0.4.11](versions/v0.4.11/README.md) | 2026-10-31 | 下排居中 | 放弃共享列对齐，每排各自严格居中 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -58,6 +61,9 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.4.0 ~ v0.4.7 | 连续迭代版，未逐个发布 | 每版都有 src.zip（打包时自动归档，未进仓库） |
 | v0.4.3 | ✓ 见 Releases（tag 是重排前的 `v0.3.15`） | ✓ 完整源码（`versions/v0.4.3/src/`） |
 | v0.4.8 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.4.8/src/`） |
+| v0.4.9 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.4.9/src/`） |
+| v0.4.10 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.4.10/src/`） |
+| v0.4.11 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.4.11/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -110,13 +116,16 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 ├─ docs/
 │  ├─ 01-产品构想.md          产品定位与功能分层
 │  └─ 02-架构决策.md          ADR-001~010，改视觉/交互前先读
-├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.4.8）
+├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.4.11）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
    ├─ ...
    ├─ v0.4.3/
-   └─ v0.4.8/
+   ├─ v0.4.8/
+   ├─ v0.4.9/
+   ├─ v0.4.10/
+   └─ v0.4.11/
       ├─ src/                该版本的完整源码
       └─ README.md
 ```
@@ -129,14 +138,14 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 
 ```bash
 # 用 gh CLI（推荐）
-gh release create v0.4.8 \
-  dist/AquaDesk-0.4.8.exe \
-  --title "v0.4.8 · 设置页换框架" \
-  --notes-file versions/v0.4.8/README.md
+gh release create v0.4.11 \
+  dist/AquaDesk-0.4.11.exe \
+  --title "v0.4.11 · 下排居中" \
+  --notes-file versions/v0.4.11/README.md
 ```
 
-网页端也行：仓库 → Releases → 起草新版本 → 标签填 `v0.4.8` → 上传 exe →
-正文直接粘 `versions/v0.4.8/README.md` 的内容。
+网页端也行：仓库 → Releases → 起草新版本 → 标签填 `v0.4.11` → 上传 exe →
+正文直接粘 `versions/v0.4.11/README.md` 的内容。
 
 一个 Release 可以同时挂多个版本的文件，但建议一版一个 Release，标签与版本号对齐。
 
