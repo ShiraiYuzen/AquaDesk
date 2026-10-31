@@ -83,12 +83,19 @@ public sealed class DockItem : INotifyPropertyChanged
         name, string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Folder, children);
 
     /// <summary>
-    /// 窗口预览：标题即窗口标题，点一下切换前台 / 最小化。
+    /// 窗口预览：标题即主窗口标题，点一下切换前台 / 最小化。
     /// icon 是抓不到缩略图时的兜底（提权窗口抓不了，总不能给用户一个空白框）。
+    /// 同一应用的多个窗口会合并成一个预览：windowCount 是组里的窗口数（&gt;1 时显示角标），
+    /// group 是组里每个窗口的句柄和标题（点预览弹出窗口列表）。
     /// </summary>
-    public static DockItem CreateWindowPreview(string title, IntPtr hwnd, ImageSource? icon) => new(
+    public static DockItem CreateWindowPreview(string title, IntPtr hwnd, ImageSource? icon,
+        int windowCount = 1, IReadOnlyList<(IntPtr Handle, string Title)>? group = null) => new(
         title, string.Empty, icon, IconLayout.Fill, null, null, DockItemKind.Window,
-        windowHandle: hwnd);
+        windowHandle: hwnd)
+    {
+        WindowCount = windowCount,
+        GroupWindows = group ?? Array.Empty<(IntPtr, string)>()
+    };
 
     public static DockItem CreateSeparator() => new(
         "分隔", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Separator);
@@ -137,6 +144,28 @@ public sealed class DockItem : INotifyPropertyChanged
 
     /// <summary>窗口预览对应的窗口句柄；其他类型为 0。</summary>
     public IntPtr WindowHandle { get; }
+
+    private int _windowCount = 1;
+
+    /// <summary>这个预览合并了几个窗口（同应用多窗口合并时 &gt; 1，单窗口恒为 1）。</summary>
+    public int WindowCount
+    {
+        get => _windowCount;
+        set
+        {
+            if (_windowCount == value) return;
+            _windowCount = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WindowCount)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ShowWindowCount)));
+        }
+    }
+
+    /// <summary>要不要显示「合并了 N 个窗口」的角标。</summary>
+    public bool ShowWindowCount => _windowCount > 1;
+
+    /// <summary>合并组里每个窗口的（句柄, 标题），点预览弹列表用；单窗口预览为空。</summary>
+    public IReadOnlyList<(IntPtr Handle, string Title)> GroupWindows { get; set; } =
+        Array.Empty<(IntPtr, string)>();
 
     /// <summary>
     /// 窗口预览的缩略图。这是唯一会在运行时变的东西 —— 每轮刷新换一张图，

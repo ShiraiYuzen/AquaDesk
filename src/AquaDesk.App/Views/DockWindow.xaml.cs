@@ -1630,8 +1630,10 @@ public partial class DockWindow : Window
                 break;
 
             case DockItemKind.Window:
-                // 窗口预览：已经在前台就最小化，最小化的就还原，其余切到前台
-                WindowPreviewService.Toggle(item.WindowHandle);
+                // 单窗口：已经在前台就最小化，最小化的就还原，其余切到前台。
+                // 同应用合并的多窗口预览：弹出窗口列表，点哪条切哪条。
+                if (item.WindowCount > 1) ShowWindowListMenu(sender as FrameworkElement, item);
+                else WindowPreviewService.Toggle(item.WindowHandle);
                 break;
 
             case DockItemKind.Trash:
@@ -1653,6 +1655,43 @@ public partial class DockWindow : Window
         }
 
         ResetMagnification();
+    }
+
+    /// <summary>
+    /// 弹出合并预览的窗口列表（同一应用开了好几个窗口时）。
+    /// 菜单挂在 NOACTIVATE 的 Dock 上，跟右键菜单一样走 OnMenuOpened
+    /// 的看门狗，在菜单外面按下鼠标就收起。
+    /// </summary>
+    private void ShowWindowListMenu(FrameworkElement? target, DockItem item)
+    {
+        if (target is null || item.GroupWindows.Count == 0) return;
+
+        var menu = new ContextMenu { PlacementTarget = target };
+        menu.Opened += OnMenuOpened;
+
+        foreach (var (handle, title) in item.GroupWindows)
+        {
+            var captured = handle;   // 闭包捕获当前窗口的句柄
+            var entry = new MenuItem
+            {
+                Header = string.IsNullOrWhiteSpace(title) ? "（无标题窗口）" : title
+            };
+            entry.Click += (_, _) => WindowPreviewService.Activate(captured);
+            menu.Items.Add(entry);
+        }
+
+        // 末尾：一键关掉这个应用合并组里的全部窗口
+        menu.Items.Add(new Separator());
+
+        var handles = item.GroupWindows.Select(w => w.Handle).ToList();
+        var closeAll = new MenuItem { Header = "关闭所有窗口" };
+        closeAll.Click += (_, _) =>
+        {
+            foreach (var handle in handles) WindowPreviewService.Close(handle);
+        };
+        menu.Items.Add(closeAll);
+
+        menu.IsOpen = true;
     }
 
     // ---------------- 菜单 ----------------
