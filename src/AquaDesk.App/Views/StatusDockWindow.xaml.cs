@@ -215,12 +215,17 @@ public partial class StatusDockWindow : Window
 
                 // 悬停放大时 Dock 的玻璃条会往两侧长，两个都是置顶窗口，谁最后设置谁在上面。
                 // 只有真的挪了位置才抬一次：每帧都设 SetWindowPos 会让胶囊自己重绘一遍。
-                var hwnd = new WindowInteropHelper(this).Handle;
-                if (hwnd != IntPtr.Zero)
+                // 但若当前浮层处于「沉底」状态（前台窗口最大化 / 全屏），就不能再把它顶回去，
+                // 否则会盖住 WPS 这类最大化窗口的内容。
+                if (!OverlayZOrder.IsSunk)
                 {
-                    NativeMethods.SetWindowPos(
-                        hwnd, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
-                        NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                    var hwnd = new WindowInteropHelper(this).Handle;
+                    if (hwnd != IntPtr.Zero)
+                    {
+                        NativeMethods.SetWindowPos(
+                            hwnd, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
+                            NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+                    }
                 }
             }
         }

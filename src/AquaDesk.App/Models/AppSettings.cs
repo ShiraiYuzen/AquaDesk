@@ -109,6 +109,12 @@ public sealed class AppSettings : INotifyPropertyChanged
     /// <summary>灵动岛高度（DIP），只作用于时间形态。</summary>
     private double _islandHeight = 30;
 
+    /// <summary>灵动岛播放形态宽度（DIP），在自动拉长基准（256）上可调。</summary>
+    private double _islandPlayerWidth = 256;
+
+    /// <summary>灵动岛播放形态高度（DIP），在自动拉长基准（34）上可调。</summary>
+    private double _islandPlayerHeight = 34;
+
     /// <summary>灵动岛 X（相对工作区左上角，DIP）。-1 表示自动水平居中。</summary>
     private double _islandX = -1;
 
@@ -653,6 +659,23 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _islandHeight;
         set => Set(ref _islandHeight, Clamp(value, 20, 100));
+    }
+
+    /// <summary>
+    /// 灵动岛播放形态宽度（DIP）。播放时胶囊会自动拉长到这个宽度（默认 256，
+    /// 即自动拉长的基准），在此之上可调宽 / 调窄；曲名放不下会自动省略号。
+    /// </summary>
+    public double IslandPlayerWidth
+    {
+        get => _islandPlayerWidth;
+        set => Set(ref _islandPlayerWidth, Clamp(value, 150, 500));
+    }
+
+    /// <summary>灵动岛播放形态高度（DIP），自动拉长基准为 34，可调。</summary>
+    public double IslandPlayerHeight
+    {
+        get => _islandPlayerHeight;
+        set => Set(ref _islandPlayerHeight, Clamp(value, 24, 100));
     }
 
     /// <summary>灵动岛 X（相对工作区左上角，DIP）。-1 表示自动水平居中。</summary>

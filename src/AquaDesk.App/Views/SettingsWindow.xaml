@@ -1087,7 +1087,7 @@
                                     <Slider Style="{StaticResource MacSlider}"
                                             Minimum="60" Maximum="500" TickFrequency="10"
                                             Value="{Binding IslandWidth, Mode=TwoWay}" />
-                                    <TextBlock Text="只作用于时间形态；播放形态按内容自动拉长"
+                                    <TextBlock Text="只作用于时间形态；播放音乐的形态在下方单独调"
                                                Style="{StaticResource RowHint}" />
                                 </StackPanel>
 
@@ -1102,6 +1102,37 @@
                                     <Slider Style="{StaticResource MacSlider}"
                                             Minimum="20" Maximum="100" TickFrequency="2"
                                             Value="{Binding IslandHeight, Mode=TwoWay}" />
+                                    <TextBlock Text="只作用于时间形态" Style="{StaticResource RowHint}" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="播放宽度" Style="{StaticResource RowLabel}" />
+                                        <TextBlock Style="{StaticResource ValueLabel}"
+                                                   Text="{Binding IslandPlayerWidth, StringFormat={}{0:F0} px}" />
+                                    </Grid>
+                                    <Slider Style="{StaticResource MacSlider}"
+                                            Minimum="150" Maximum="500" TickFrequency="10"
+                                            Value="{Binding IslandPlayerWidth, Mode=TwoWay}" />
+                                    <TextBlock Text="播放音乐时胶囊自动拉长到的宽度（默认 256），曲名放不下会省略号"
+                                               Style="{StaticResource RowHint}" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="播放高度" Style="{StaticResource RowLabel}" />
+                                        <TextBlock Style="{StaticResource ValueLabel}"
+                                                   Text="{Binding IslandPlayerHeight, StringFormat={}{0:F0} px}" />
+                                    </Grid>
+                                    <Slider Style="{StaticResource MacSlider}"
+                                            Minimum="24" Maximum="100" TickFrequency="2"
+                                            Value="{Binding IslandPlayerHeight, Mode=TwoWay}" />
+                                    <TextBlock Text="播放音乐时胶囊的高度（默认 34）"
+                                               Style="{StaticResource RowHint}" />
                                 </StackPanel>
 
                                 <Border Style="{StaticResource CardDivider}" />
@@ -1114,7 +1145,7 @@
                                                 Style="{StaticResource SecondaryButton}"
                                                 Click="OnResetIsland" />
                                     </Grid>
-                                    <TextBlock Text="位置回到顶部居中，尺寸回到 88×30"
+                                    <TextBlock Text="位置回到顶部居中，尺寸回到默认（时间 88×30，播放 256×34）"
                                                Style="{StaticResource RowHint}" Margin="0,4,96,0" />
                                 </StackPanel>
                             </StackPanel>
