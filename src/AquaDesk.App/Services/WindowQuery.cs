@@ -102,6 +102,16 @@ public static class WindowQuery
     /// Dock 和两个胶囊在这两种情况下都该沉到最底层 —— 它们是盖在所有窗口之上的浮层，
     /// 窗口一最大化就会压住别人的内容（浏览器底部那条工具栏、编辑器最后一行代码都被吃掉）。
     /// </summary>
+    /// <summary>
+    /// 前台窗口是不是「占满屏幕」：最大化，或者全屏（F11 / 无边框游戏）。
+    ///
+    /// Dock 和状态胶囊在这两种情况下都该沉到最底层 —— 它们是盖在所有窗口之上的浮层，
+    /// 窗口一最大化就会压住别人的内容。
+    ///
+    /// 前台窗口本身没放大时，再退一步看「前台进程有没有放大的顶层窗口」——
+    /// WPS、部分编辑器会把键盘焦点留在某个子窗口 / 悬浮窗上，真正放大铺满的文档窗口
+    /// 并不是前台窗口，光查前台就会漏掉，导致浮层一直压在别人内容上面。
+    /// </summary>
     public static bool IsForegroundCoveringScreen()
     {
         try
@@ -110,12 +120,50 @@ public static class WindowQuery
             if (hwnd == IntPtr.Zero) return false;
             if (IsShellWindow(hwnd)) return false;
 
-            return NativeMethods.IsZoomed(hwnd) || IsForegroundFullscreen(out _);
+            if (NativeMethods.IsZoomed(hwnd) || IsForegroundFullscreen(out _)) return true;
+
+            // 退路：前台窗口没放大，但同进程有放大的顶层窗口（WPS 这类多窗口应用）
+            NativeMethods.GetWindowThreadProcessId(hwnd, out var pid);
+            return ProcessCoversScreen(pid);
         }
         catch
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// 某个进程有没有「可见、放大（IsZoomed）」的顶层窗口。
+    /// 用来兜住前台焦点不在放大窗口上的情况（WPS 这类多窗口应用）。
+    ///
+    /// 这里不要求「盖满整个显示器」：放大的窗口本来就会填满工作区，
+    /// 而原生任务栏可见时，最大化窗口底部会留出任务栏那一条（约 40px），
+    /// 矩形并不等于整个显示器——若加上全屏矩形判定反而会漏掉，
+    /// 浮层就一直压在别人内容上。前台窗口那条路径也是靠 IsZoomed 直接判定，
+    /// 这里保持一致：IsZoomed 即视为「占满屏幕」。
+    /// </summary>
+    private static bool ProcessCoversScreen(uint pid)
+    {
+        if (pid == 0) return false;
+
+        var found = false;
+
+        NativeMethods.EnumWindows((w, _) =>
+        {
+            NativeMethods.GetWindowThreadProcessId(w, out var wp);
+            if (wp != pid) return true;
+            if (!NativeMethods.IsWindowVisible(w)) return true;
+            if (IsShellWindow(w)) return true;
+            if (NativeMethods.IsZoomed(w))
+            {
+                found = true;
+                return false;
+            }
+
+            return true;
+        }, IntPtr.Zero);
+
+        return found;
     }
 
     /// <summary>

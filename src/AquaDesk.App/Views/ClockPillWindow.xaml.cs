@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using AquaDesk.Models;
@@ -27,11 +28,13 @@ public partial class ClockPillWindow : Window
     /// <summary>胶囊离屏幕顶边的距离（DIP）。</summary>
     private const double TopGap = 6;
 
-    /// <summary>两种形态的尺寸。拉长动画就是在这两个宽度之间补间。</summary>
+    /// <summary>两种形态的默认尺寸。拉长动画就是在这两个宽度之间补间。</summary>
     private const double ClockWidth = 88;
-    private const double PlayerWidth = 256;
     private const double ClockHeight = 30;
-    private const double PlayerHeight = 34;
+
+    /// <summary>播放形态的默认尺寸 = 自动拉长的基准，设置里的「播放宽度 / 播放高度」在此之上调整。</summary>
+    private const double PlayerWidthDefault = 256;
+    private const double PlayerHeightDefault = 34;
 
     /// <summary>窗口比胶囊多出来的部分：左右各 10（阴影落点）、上下 6 + 10。</summary>
     private const double ShadowX = 20;
@@ -49,7 +52,7 @@ public partial class ClockPillWindow : Window
     private MediaSnapshot? _snapshot;
     private bool _showingPlayer;
 
-    /// <summary>拖动灵动岛时记下的起点（窗口坐标），用来算位移。</summary>
+    /// <summary>拖动灵动岛时记下的鼠标起点（屏幕绝对坐标，DIP），用来算位移。</summary>
     private System.Windows.Point? _dragStart;
     private double _dragOriginLeft;
     private double _dragOriginTop;
@@ -97,12 +100,12 @@ public partial class ClockPillWindow : Window
         if (!_settings.ShowIsland) Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>把自定义宽高套到时间 / 播放两种形态上（-1 表示跟随默认内容尺寸）。</summary>
+    /// <summary>把自定义宽高套到时间 / 播放两种形态上（时间形态在 SetPillWidth/Height 里收敛到设置值）。</summary>
     private void ApplyCustomSize()
     {
-        // 时间形态的自定义宽高在 SetPillWidth/SetPillHeight 里应用（那里是尺寸的唯一入口）
-        SetPillWidth(_showingPlayer ? PlayerWidth : ClockWidth);
-        SetPillHeight(_showingPlayer ? PlayerHeight : ClockHeight);
+        // 时间 / 播放形态各自有自己的可调尺寸（SetPillWidth/Height 里按形态收敛）
+        SetPillWidth(_showingPlayer ? _settings.IslandPlayerWidth : ClockWidth);
+        SetPillHeight(_showingPlayer ? _settings.IslandPlayerHeight : ClockHeight);
     }
 
     private void RefreshClock() => ClockText.Text = DateTime.Now.ToString("HH:mm");
@@ -191,12 +194,12 @@ public partial class ClockPillWindow : Window
         PlayerState.Visibility = Visibility.Visible;
         ClockText.Visibility = Visibility.Collapsed;
 
-        SetPillHeight(PlayerHeight);
+        SetPillHeight(_settings.IslandPlayerHeight);
 
         // 有按钮了，必须能接收点击
         NonActivatingWindow.SetClickThrough(this, false);
 
-        TweenWidth(PlayerWidth, () => FadeTo(PlayerState, 1, 120));
+        TweenWidth(_settings.IslandPlayerWidth, () => FadeTo(PlayerState, 1, 120));
     }
 
     /// <summary>收起：先淡出内容，再缩短、还原成时间。</summary>
@@ -258,10 +261,10 @@ public partial class ClockPillWindow : Window
         _widthTween = timer;
     }
 
-    /// <summary>胶囊宽度和窗口宽度一起改 —— 窗口得给两边各留 10px 的阴影落点。</summary>
+    /// <summary>胶囊宽度和窗口宽度一起改 —— 窗口得给两边各留 10px 的阴影落点。
+    /// 时间形态收敛到 IslandWidth；播放形态用调用方传入的 IslandPlayerWidth。</summary>
     private void SetPillWidth(double width)
     {
-        // 自定义宽度只作用于时间形态；播放形态要容纳曲名和按钮，按内容动态拉长
         if (!_showingPlayer) width = _settings.IslandWidth;
 
         Pill.Width = width;
@@ -270,7 +273,7 @@ public partial class ClockPillWindow : Window
 
     private void SetPillHeight(double height)
     {
-        // 自定义高度只作用于时间形态
+        // 时间形态用 IslandHeight；播放形态用调用方传入的 IslandPlayerHeight
         if (!_showingPlayer) height = _settings.IslandHeight;
 
         Pill.Height = height;
@@ -327,6 +330,8 @@ public partial class ClockPillWindow : Window
 
             case nameof(AppSettings.IslandWidth):
             case nameof(AppSettings.IslandHeight):
+            case nameof(AppSettings.IslandPlayerWidth):
+            case nameof(AppSettings.IslandPlayerHeight):
                 ApplyCustomSize();
                 PositionTopCenter();
                 break;
@@ -347,9 +352,16 @@ public partial class ClockPillWindow : Window
     protected override void OnMouseLeftButtonDown(System.Windows.Input.MouseButtonEventArgs e)
     {
         base.OnMouseLeftButtonDown(e);
-        if (_settings.IslandFixed || _showingPlayer) return;   // 固定 / 播放形态不可拖
+        if (_settings.IslandFixed) return;                 // 固定模式整体不可拖
 
-        _dragStart = e.GetPosition(this);
+        // 播放形态下：点在三个按钮上不启动拖动，让按钮正常响应点击
+        if (_showingPlayer && IsOnButton(e.OriginalSource)) return;
+
+        // 用「屏幕绝对坐标」记录起点：先 GetPosition(this) 拿到相对窗口的点，
+        // 再 PointToScreen 转成屏幕绝对坐标（DIP）。拖动时窗口会跟着鼠标移动，
+        // 若直接用相对窗口坐标（含 GetPosition(null)，它在 Window 上也是相对窗口），
+        // 移动后基准随之改变，表现为「拖一下就卡住 / 不跟鼠标」。
+        _dragStart = PointToScreen(e.GetPosition(this));
         _dragOriginLeft = Left;
         _dragOriginTop = Top;
         CaptureMouse();
@@ -360,9 +372,28 @@ public partial class ClockPillWindow : Window
         base.OnMouseMove(e);
         if (_dragStart is not System.Windows.Point start) return;
 
-        var now = e.GetPosition(this);
+        var now = PointToScreen(e.GetPosition(this));
         Left = _dragOriginLeft + (now.X - start.X);
         Top = _dragOriginTop + (now.Y - start.Y);
+    }
+
+    /// <summary>判断鼠标按下点是否落在播放形态的三个按钮（或其子元素）上，避免拖动时误触发按钮。</summary>
+    private bool IsOnButton(object? source)
+    {
+        var d = source as DependencyObject;
+        while (d is not null && d is not Window)
+        {
+            if (ReferenceEquals(d, PrevButton) ||
+                ReferenceEquals(d, PlayPauseButton) ||
+                ReferenceEquals(d, NextButton))
+            {
+                return true;
+            }
+
+            d = VisualTreeHelper.GetParent(d);
+        }
+
+        return false;
     }
 
     protected override void OnMouseLeftButtonUp(System.Windows.Input.MouseButtonEventArgs e)
@@ -380,13 +411,15 @@ public partial class ClockPillWindow : Window
         PositionTopCenter();
     }
 
-    /// <summary>恢复默认：位置回到顶部居中、尺寸回到时间形态默认（88×30）。</summary>
+    /// <summary>恢复默认：位置回到顶部居中，时间形态 88×30、播放形态 256×34（自动拉长基准）。</summary>
     public void ResetIslandPosition()
     {
         _settings.IslandX = -1;
         _settings.IslandY = -1;
         _settings.IslandWidth = 88;
         _settings.IslandHeight = 30;
+        _settings.IslandPlayerWidth = PlayerWidthDefault;
+        _settings.IslandPlayerHeight = PlayerHeightDefault;
 
         ApplyCustomSize();
         PositionTopCenter();

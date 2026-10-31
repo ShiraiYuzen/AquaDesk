@@ -125,6 +125,8 @@ public partial class SettingsWindow : Window
                 _settings.IslandFixed = defaults.IslandFixed;
                 _settings.IslandWidth = defaults.IslandWidth;
                 _settings.IslandHeight = defaults.IslandHeight;
+                _settings.IslandPlayerWidth = defaults.IslandPlayerWidth;
+                _settings.IslandPlayerHeight = defaults.IslandPlayerHeight;
                 _settings.IslandX = defaults.IslandX;
                 _settings.IslandY = defaults.IslandY;
                 break;
@@ -178,6 +180,8 @@ public partial class SettingsWindow : Window
         _settings.IslandFixed = defaults.IslandFixed;
         _settings.IslandWidth = defaults.IslandWidth;
         _settings.IslandHeight = defaults.IslandHeight;
+        _settings.IslandPlayerWidth = defaults.IslandPlayerWidth;
+        _settings.IslandPlayerHeight = defaults.IslandPlayerHeight;
         _settings.IslandX = defaults.IslandX;
         _settings.IslandY = defaults.IslandY;
     }
@@ -205,13 +209,15 @@ public partial class SettingsWindow : Window
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
 
-    /// <summary>灵动岛恢复默认：位置回到顶部居中、尺寸回到 88×30。</summary>
+    /// <summary>灵动岛恢复默认：位置回到顶部居中，时间形态 88×30、播放形态 256×34。</summary>
     private void OnResetIsland(object sender, RoutedEventArgs e)
     {
         _settings.IslandX = -1;
         _settings.IslandY = -1;
         _settings.IslandWidth = 88;
         _settings.IslandHeight = 30;
+        _settings.IslandPlayerWidth = 256;
+        _settings.IslandPlayerHeight = 34;
     }
 
     // ---------------- 保存 ----------------
