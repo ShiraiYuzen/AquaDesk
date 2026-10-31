@@ -11,6 +11,9 @@ internal static class NativeMethods
     public const int GWL_EXSTYLE = -20;
 
     public const int WS_EX_TOOLWINDOW = 0x00000080;
+
+    /// <summary>带这个的窗口即使有 TOOLWINDOW 也算「应用窗口」（Alt+Tab 里能看到）。</summary>
+    public const int WS_EX_APPWINDOW = 0x00040000;
     public const int WS_EX_NOACTIVATE = 0x08000000;
 
     /// <summary>鼠标穿透：让拖动浮层不吃点击，事件落到它下面的窗口上。</summary>
@@ -238,6 +241,11 @@ internal static class NativeMethods
     public static extern bool QueryFullProcessImageNameW(
         IntPtr process, uint flags, System.Text.StringBuilder exeName, ref int size);
 
+    /// <summary>强杀进程。托盘程序没有窗口可以发 WM_CLOSE，只能这么退。</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool TerminateProcess(IntPtr process, uint exitCode);
+
     [StructLayout(LayoutKind.Sequential)]
     public struct FILETIME
     {
@@ -460,6 +468,10 @@ internal static class NativeMethods
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOZORDER = 0x0004;
     public const uint SWP_NOACTIVATE = 0x0010;
+    public const uint SWP_NOMOVE = 0x0002;
+
+    /// <summary>SetWindowPos 的 hWndInsertAfter：置顶。</summary>
+    public static readonly IntPtr HWND_TOPMOST = new(-1);
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern bool SetWindowPos(

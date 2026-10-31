@@ -42,6 +42,80 @@ public static class IconExtractor
         return image ?? TryLegacyIcon(shortcutPath);
     }
 
+    /// <summary>按 exe 路径取图标（后台程序面板用，路径来自进程表时一定是真实存在的）。</summary>
+    public static ImageSource? FromExecutable(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+
+        return TryShellImageFactory(path) ?? TryLegacyIcon(path);
+    }
+
+    /// <summary>
+    /// 按 AppUserModelID 取应用图标（媒体会话给的就是这个）。
+    ///
+    /// 它有三种形态，得分别对付：
+    /// - 完整 exe 路径（部分播放器这么注册）
+    /// - 只有 exe 文件名，比如 <c>Spotify.exe</c> / <c>QQMusic.exe</c>
+    /// - 打包应用，形如 <c>SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify</c>
+    ///
+    /// 前两种去进程表里找真实路径（最准，也顺手支持了绿色版）；
+    /// 第三种走 <c>shell:AppsFolder\&lt;AUMID&gt;</c>，Shell 会解析出包里的 Logo。
+    /// </summary>
+    public static ImageSource? FromAppUserModelId(string appId)
+    {
+        if (string.IsNullOrWhiteSpace(appId)) return null;
+
+        if (appId.Contains('\\') || appId.Contains('/'))
+        {
+            if (File.Exists(appId)) return TryShellImageFactory(appId);
+        }
+        else if (appId.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+        {
+            var fromProcess = TryFromProcessName(Path.GetFileNameWithoutExtension(appId));
+            if (fromProcess is not null) return fromProcess;
+        }
+
+        var fromShell = TryShellImageFactory($@"shell:AppsFolder\{appId}");
+        if (fromShell is not null) return fromShell;
+
+        return TryFromProcessName(Path.GetFileNameWithoutExtension(appId));
+    }
+
+    /// <summary>拿正在运行的进程的可执行文件路径去取图标；拿不到就返回 null。</summary>
+    private static ImageSource? TryFromProcessName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        try
+        {
+            foreach (var process in System.Diagnostics.Process.GetProcessesByName(name))
+            {
+                try
+                {
+                    var path = process.MainModule?.FileName;
+                    if (string.IsNullOrEmpty(path) || !File.Exists(path)) continue;
+
+                    var image = TryShellImageFactory(path);
+                    if (image is not null) return image;
+                }
+                catch
+                {
+                    // 对方是管理员权限的进程时读不了 MainModule，跳过
+                }
+                finally
+                {
+                    process.Dispose();
+                }
+            }
+        }
+        catch
+        {
+            // 枚举进程失败就算了，退回 null 让界面画音符
+        }
+
+        return null;
+    }
+
     private static ImageSource? TryShellImageFactory(string path)
     {
         object? shellItem = null;

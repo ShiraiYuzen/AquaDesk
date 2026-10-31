@@ -13,11 +13,33 @@ public partial class App : Application
 
     private Mutex? _singleInstance;
     private TrayIcon? _tray;
-    private MenuBarWindow? _menuBar;
+    private ClockPillWindow? _clock;
+    private MediaSessionService? _media;
+    private StatusDockWindow? _statusDock;
 
     /// <summary>进程意外结束时的痕迹，方便事后定位（%TEMP%\AquaDesk-crash.log）。</summary>
     private static readonly string CrashLogPath =
         Path.Combine(Path.GetTempPath(), "AquaDesk-crash.log");
+
+    /// <summary>
+    /// 日志上限。超过就滚到 <c>.1</c>，只留一代。
+    ///
+    /// 以前是无限追加：布局 / 胶囊位置这些每帧都可能触发的日志在 UI 线程同步写盘，
+    /// 常驻几天后文件能涨到几十 MB，而且每条都要开关一次文件。
+    /// </summary>
+    private const long MaxLogBytes = 512 * 1024;
+
+    private static readonly object LogLock = new();
+
+    /// <summary>上一条日志，用来压掉「同一句话在极短时间内重复」的刷屏。</summary>
+    private static string? _lastLine;
+    private static DateTime _lastLineAt;
+
+    /// <summary>
+    /// <c>--verbose</c>：把布局 / 位置 / 每帧这类高频排查日志也落盘。
+    /// 默认关闭 —— 这些信息只在自己调布局时有用，日常留着只会把日志撑大。
+    /// </summary>
+    internal static bool Verbose { get; private set; }
 
     public App()
     {
@@ -31,15 +53,47 @@ public partial class App : Application
         };
     }
 
-    internal static void Log(string where, Exception? ex)
+    /// <summary>关键事件与异常，永远落盘。</summary>
+    internal static void Log(string where, Exception? ex = null) => Write(where, ex);
+
+    /// <summary>
+    /// 高频排查日志（布局、浮层定位、每帧几何）：只有 <c>--verbose</c> 启动时才写。
+    /// 换掉原来那些直接调 <see cref="Log"/> 的位置，避免默认情况下每秒写好几次盘。
+    /// </summary>
+    internal static void Trace(string where) => Write(where, null, onlyWhenVerbose: true);
+
+    private static void Write(string where, Exception? ex, bool onlyWhenVerbose = false)
     {
-        try
+        if (onlyWhenVerbose && !Verbose) return;
+
+        var body = ex is null ? where : $"{where}\n{ex}";
+
+        lock (LogLock)
         {
-            File.AppendAllText(CrashLogPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {where}\n{ex}\n\n");
-        }
-        catch
-        {
-            // 连日志都写不了就没办法了
+            var now = DateTime.Now;
+
+            // 2 秒内同一句话不重复写：布局被连着触发两次时肉眼看到的日志干净很多
+            if (body == _lastLine && (now - _lastLineAt).TotalSeconds < 2) return;
+            _lastLine = body;
+            _lastLineAt = now;
+
+            try
+            {
+                var info = new FileInfo(CrashLogPath);
+
+                if (info.Exists && info.Length > MaxLogBytes)
+                {
+                    var old = CrashLogPath + ".1";
+                    if (File.Exists(old)) File.Delete(old);
+                    File.Move(CrashLogPath, old);
+                }
+
+                File.AppendAllText(CrashLogPath, $"[{now:yyyy-MM-dd HH:mm:ss}] {body}\n");
+            }
+            catch
+            {
+                // 连日志都写不了就没办法了
+            }
         }
     }
 
@@ -143,6 +197,9 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        // --verbose 打开高频排查日志（布局 / 浮层定位）。默认关，详见 App.Trace
+        Verbose = e.Args.Contains("--verbose");
+
         // 提权子进程模式：只做一次射频开关然后退出。
         // **必须放在单实例检查之前**——否则会被当成「第二个实例」，
         // 把正在跑的主程序接管掉（等于点一下开关就把自己重启了）。
@@ -177,6 +234,11 @@ public partial class App : Application
 
         var settings = SettingsStore.Load();
 
+        // 设置页和右键菜单跟着外观走
+        ThemeManager.Apply(settings.Style);
+
+        Log($"启动 {typeof(App).Assembly.GetName().Version} · PID={Environment.ProcessId}");
+
         // 自启 / 桌面图标以系统实际状态为准（用户可能在任务管理器里关过）
         // 自启以「设置文件」为准，不要反过来用系统状态覆盖它。
         // 原来这里是 `settings.AutoStart = IsEnabled()`：删任务失败时任务还留着，
@@ -206,11 +268,27 @@ public partial class App : Application
         MainWindow = dock;
         dock.Show();
 
-        // 顶部菜单栏（仿 macOS）
-        _menuBar = new MenuBarWindow(settings);
-        _menuBar.Show();
+        // 顶部浮动胶囊：平时显示时间，系统里有媒体会话在播时拉长成播放器
+        _media = new MediaSessionService();
+        _media.Start();
 
-        // 菜单栏注册 AppBar + 任务栏隐藏都会改工作区，等 Shell 应用完再让 Dock 贴一次底
+        _clock = new ClockPillWindow(settings, _media);
+        _clock.Show();
+
+        // Dock 右侧：电量 / WiFi / 蓝牙 / 音量 / 输入法
+        _statusDock = new StatusDockWindow(settings, dock);
+        _statusDock.Show();
+
+        // 焦点守卫：我们不是前台时不该握着键盘焦点（详见 FocusGuard 注释）
+        FocusGuard.Start((uint)Environment.ProcessId);
+        var focusGuard = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        focusGuard.Tick += (_, _) => FocusGuard.Tick();
+        focusGuard.Start();
+
+        // 任务栏隐藏会改工作区，等 Shell 应用完再让 Dock 贴一次底
         var relayout = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(600) };
         relayout.Tick += (_, _) =>
         {
@@ -250,11 +328,12 @@ public partial class App : Application
                 string.Join("\n", scanned.Select(c => $"  {c.Name}  ←  {c.Target}")), null);
         }
 
-        // 排查用：--test-tray 直接跑一次托盘唤起，把结果写日志
-        if (e.Args.Contains("--test-tray"))
+        // 排查用：--media-info 把所有媒体会话写进日志然后退出
+        if (e.Args.Contains("--media-info"))
         {
-            var result = Services.TrayService.OpenOverflow();
-            Log($"自测托盘：OpenOverflow={result}", null);
+            // 不能 GetResult() 阻塞 UI 线程：WinRT 的异步要回到线程池/UI 线程，
+            // 一阻塞就死等（表现是日志里一行都没有）
+            _ = MediaSessionService.DumpSessionsAsync();
         }
 
         // 开发用：带 --settings 启动时直接弹出设置页，方便调参
@@ -272,7 +351,9 @@ public partial class App : Application
         // 谁触发的退出？把调用栈留下来，方便查「自己没了」这类问题
         Log($"正常退出（ExitCode={e.ApplicationExitCode}）\n{Environment.StackTrace}", null);
 
-        _menuBar?.Close();
+        _clock?.Close();
+        _media?.Dispose();
+        _statusDock?.Close();
         _tray?.Dispose();
         _singleInstance?.Dispose();
         base.OnExit(e);

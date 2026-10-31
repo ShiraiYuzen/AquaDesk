@@ -6,6 +6,12 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Themes/Tokens.xaml" />
+
+                <!-- 右键菜单的玻璃样式（隐式样式，全应用生效） -->
+                <ResourceDictionary Source="Themes/UiControls.xaml" />
+
+                <!-- 当前外观的配色；启动后由 ThemeManager 按设置替换 -->
+                <ResourceDictionary Source="Themes/UiTheme.Liquid.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <!-- bool → Visibility，风格切换时用 -->

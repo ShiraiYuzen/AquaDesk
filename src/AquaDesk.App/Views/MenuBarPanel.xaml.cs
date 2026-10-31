@@ -988,6 +988,228 @@ public partial class MenuBarPanel : UserControl
         VolumeChanged?.Invoke(percent);
     }
 
+    // ---------------- 后台程序 ----------------
+
+    /// <summary>已经点过一次「结束」、等着二次确认的进程。重画列表时清空。</summary>
+    private readonly HashSet<uint> _confirmEnd = new();
+
+    /// <summary>exe 路径 → 图标，避免每次刷新都去问一遍 Shell。</summary>
+    private readonly Dictionary<string, ImageSource?> _iconCache = new(StringComparer.OrdinalIgnoreCase);
+
+    public void ShowBackground()
+    {
+        ShowOnly(BackgroundView);
+        ReloadBackground();
+    }
+
+    private void OnBackgroundRefresh(object sender, RoutedEventArgs e) => ReloadBackground();
+
+    private void ReloadBackground()
+    {
+        BackgroundList.Children.Clear();
+        _confirmEnd.Clear();
+
+        // 枚举窗口 + 读注册表 + 抠图标都在毫秒级，留在 UI 线程就行；
+        // 真碰上进程特别多的机器再挪到线程池，别为保险先加一层异步复杂度
+        var apps = BackgroundApps.Query();
+
+        BackgroundCount.Text = apps.Count == 0 ? string.Empty : $"{apps.Count} 个";
+
+        BackgroundHint.Text = apps.Count == 0
+            ? "没有正在后台运行的程序"
+            : "最小化的窗口点一下切回去；托盘程序只能结束";
+
+        foreach (var app in apps)
+        {
+            BackgroundList.Children.Add(CreateBackgroundRow(app));
+        }
+    }
+
+    private UIElement CreateBackgroundRow(BackgroundApp app)
+    {
+        var row = new Border
+        {
+            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(9, 7, 9, 7),
+            Margin = new Thickness(0, 0, 0, 3),
+            Background = new SolidColorBrush(Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)),
+            Cursor = app.TrayOnly ? Cursors.Arrow : Cursors.Hand,
+            Tag = app,
+            ToolTip = app.Path.Length == 0 ? null : app.Path
+        };
+
+        if (!app.TrayOnly)
+        {
+            var idle = row.Background;
+            var hover = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF));
+
+            row.MouseEnter += (_, _) => row.Background = hover;
+            row.MouseLeave += (_, _) => row.Background = idle;
+            row.MouseLeftButtonUp += OnBackgroundRowClick;
+        }
+
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var icon = CreateAppIcon(app);
+        icon.Margin = new Thickness(0, 0, 10, 0);
+        Grid.SetColumn(icon, 0);
+        grid.Children.Add(icon);
+
+        var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+
+        text.Children.Add(new TextBlock
+        {
+            Text = app.Name,
+            Foreground = new SolidColorBrush(Color.FromRgb(0xF2, 0xF2, 0xF2)),
+            FontSize = 12.5,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        text.Children.Add(new TextBlock
+        {
+            Text = app.TrayOnly ? app.Detail : (app.Minimized ? $"最小化 · {app.Detail}" : app.Detail),
+            Foreground = new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)),
+            FontSize = 10.5,
+            Margin = new Thickness(0, 1, 0, 0),
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        // 右边：窗口程序给「切到前台」提示 + 「结束」，托盘程序只有「结束」。
+        // 结束按钮对所有行都要有 —— 后台卡死的程序只能靠它收掉。
+        var actions = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        if (!app.TrayOnly) actions.Children.Add(CreateSwitchHint());
+        actions.Children.Add(CreateEndButton(app));
+
+        Grid.SetColumn(actions, 2);
+        grid.Children.Add(actions);
+
+        row.Child = grid;
+        return row;
+    }
+
+    /// <summary>窗口程序右边放一个弱提示，点整行就能切过去；结束按钮另外给。</summary>
+    private static FrameworkElement CreateSwitchHint() => new TextBlock
+    {
+        Text = "切到前台",
+        Foreground = new SolidColorBrush(Color.FromArgb(0x59, 0xFF, 0xFF, 0xFF)),
+        FontSize = 10.5,
+        VerticalAlignment = VerticalAlignment.Center,
+        Margin = new Thickness(8, 0, 8, 0)
+    };
+
+    private UIElement CreateEndButton(BackgroundApp app)
+    {
+        var button = new Button
+        {
+            Content = "结束",
+            Style = (Style)FindResource("LinkButton"),
+            Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x8A, 0x8A)),
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = app
+        };
+
+        button.Click += OnEndProcessClick;
+        return button;
+    }
+
+    /// <summary>
+    /// 结束进程要两步：托盘程序没有窗口，杀掉就是直接没了，误点代价太大。
+    /// 第一次点把按钮变成「确认结束」，再点一次才真的动手。
+    /// </summary>
+    private void OnEndProcessClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: BackgroundApp app } button) return;
+
+        if (!_confirmEnd.Contains(app.Pid))
+        {
+            _confirmEnd.Add(app.Pid);
+            button.Content = "确认结束";
+            button.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x5A, 0x5A));
+            button.FontWeight = FontWeights.SemiBold;
+            return;
+        }
+
+        var ok = BackgroundApps.End(app);
+        _confirmEnd.Remove(app.Pid);
+
+        ReloadBackground();
+
+        if (!ok)
+        {
+            BackgroundHint.Text = $"结束 {app.Name} 失败（可能需要管理员权限）";
+        }
+    }
+
+    private void OnBackgroundRowClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: BackgroundApp app }) return;
+
+        // 先收面板再切窗口：留着面板会挡视线，也还在参与「点外面就关」的判定
+        RequestClose?.Invoke();
+
+        BackgroundApps.Activate(app);
+    }
+
+    private FrameworkElement CreateAppIcon(BackgroundApp app)
+    {
+        var source = app.Icon ?? LoadIcon(app.Path);
+
+        if (source is not null)
+        {
+            var image = new Image
+            {
+                Source = source,
+                Width = 26,
+                Height = 26,
+                Stretch = Stretch.Uniform,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            return image;
+        }
+
+        // 抠不到图标就给个首字母方块，总比空一块好
+        return new Border
+        {
+            Width = 26,
+            Height = 26,
+            CornerRadius = new CornerRadius(7),
+            Background = new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)),
+            VerticalAlignment = VerticalAlignment.Center,
+            Child = new TextBlock
+            {
+                Text = app.Name.Length == 0 ? "?" : app.Name[..1].ToUpperInvariant(),
+                Foreground = new SolidColorBrush(Color.FromArgb(0xD9, 0xFF, 0xFF, 0xFF)),
+                FontSize = 12,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        };
+    }
+
+    private ImageSource? LoadIcon(string path)
+    {
+        if (path.Length == 0) return null;
+        if (_iconCache.TryGetValue(path, out var cached)) return cached;
+
+        var image = IconExtractor.FromExecutable(path);
+        _iconCache[path] = image;
+        return image;
+    }
+
     // ---------------- 通用 ----------------
 
     private void ShowOnly(UIElement view)
@@ -997,6 +1219,7 @@ public partial class MenuBarPanel : UserControl
         VolumeView.Visibility = ReferenceEquals(view, VolumeView) ? Visibility.Visible : Visibility.Collapsed;
         KeyboardView.Visibility = ReferenceEquals(view, KeyboardView) ? Visibility.Visible : Visibility.Collapsed;
         BluetoothView.Visibility = ReferenceEquals(view, BluetoothView) ? Visibility.Visible : Visibility.Collapsed;
+        BackgroundView.Visibility = ReferenceEquals(view, BackgroundView) ? Visibility.Visible : Visibility.Collapsed;
 
         // 离开音量页就别再每 150ms 读一次音量了
         if (!ReferenceEquals(view, VolumeView)) _volumeWatch.Stop();

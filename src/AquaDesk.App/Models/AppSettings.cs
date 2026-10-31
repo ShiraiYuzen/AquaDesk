@@ -7,11 +7,17 @@ using AquaDesk.Services;
 
 namespace AquaDesk.Models;
 
-/// <summary>界面风格。经典 = 最初 0.01 的样子，液态 = 后面加的折射与多层高光。</summary>
+/// <summary>
+/// 界面风格。
+/// Liquid = 液态玻璃（折射 + 多层高光，默认）；
+/// Classic = 最初 0.01 的样子；
+/// LiquidClear = 液态透明玻璃：中间透、色散彩虹边、轻微折射。
+/// </summary>
 public enum DockStyle
 {
     Liquid = 0,
-    Classic = 1
+    Classic = 1,
+    LiquidClear = 2
 }
 
 /// <summary>Dock 停靠在屏幕的哪条边。</summary>
@@ -48,7 +54,8 @@ public enum DockPauseMode
 /// </summary>
 public sealed class AppSettings : INotifyPropertyChanged
 {
-    private DockStyle _style = DockStyle.Liquid;
+    private DockStyle _style = DockStyle.LiquidClear;
+    private bool _allowStyleSwitch;
     private double _glassOpacity = 0.26;
     private double _iconSize = 52;
     private double _iconGap = 6;
@@ -58,10 +65,12 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _autoStart;
     private bool _hideTaskbar;
     private bool _hideDesktopIcons;
-    private bool _showBrandIcon = true;
-    private bool _showWindowsIcon = true;
+    private bool _showBrandIcon;
+    private bool _showWindowsIcon;
     private bool _showLaunchpadIcon = true;
     private bool _showTrashIcon = true;
+    private bool _showBackgroundAppsButton = true;
+    private bool _showBatteryPercent;
     private bool _showComputerIcon = true;
     private bool _showWindowPreviews = true;
     private DockEdge _edge = DockEdge.Bottom;
@@ -69,6 +78,12 @@ public sealed class AppSettings : INotifyPropertyChanged
     private DockPauseMode _pauseMode = DockPauseMode.Never;
 
     // ---------------- 液态玻璃 ----------------
+
+    /// <summary>
+    /// 配置结构版本，用来做一次性迁移。
+    /// 0.3.5：老配置可能停在「液态透明玻璃」，迁移时统一回到默认的液态玻璃。
+    /// </summary>
+    public int SettingsVersion { get; set; }
 
     /// <summary>界面风格，切换后立即生效。</summary>
     public DockStyle Style
@@ -79,7 +94,26 @@ public sealed class AppSettings : INotifyPropertyChanged
             if (!Set(ref _style, value)) return;
             OnPropertyChanged(nameof(IsLiquid));
             OnPropertyChanged(nameof(IsClassic));
+            OnPropertyChanged(nameof(IsLiquidClear));
+            OnPropertyChanged(nameof(ShowsTint));
             OnPropertyChanged(nameof(StyleIndex));
+            OnPropertyChanged(nameof(TintOpacity));
+        }
+    }
+
+    /// <summary>
+    /// 允许切换外观。默认关着 —— 关着时界面统一用液态透明玻璃，设置里也不显示风格选择，
+    /// 免得误点到别的样式后不知道怎么切回来。
+    /// </summary>
+    public bool AllowStyleSwitch
+    {
+        get => _allowStyleSwitch;
+        set
+        {
+            if (!Set(ref _allowStyleSwitch, value)) return;
+
+            // 关掉开关就回到统一风格，避免停在某个被隐藏的样式上
+            if (!value && _style != DockStyle.LiquidClear) Style = DockStyle.LiquidClear;
         }
     }
 
@@ -88,10 +122,21 @@ public sealed class AppSettings : INotifyPropertyChanged
     public int StyleIndex
     {
         get => (int)_style;
-        set => Style = value == (int)DockStyle.Classic ? DockStyle.Classic : DockStyle.Liquid;
+        set => Style = value switch
+        {
+            (int)DockStyle.Classic => DockStyle.Classic,
+            (int)DockStyle.LiquidClear => DockStyle.LiquidClear,
+            _ => DockStyle.Liquid
+        };
     }
 
     [JsonIgnore] public bool IsLiquid => _style == DockStyle.Liquid;
+
+    /// <summary>中间透明、边缘渐变发光。</summary>
+    [JsonIgnore] public bool IsLiquidClear => _style == DockStyle.LiquidClear;
+
+    /// <summary>要不要画那层白色底色（边缘光样式不画，中间是透的）。</summary>
+    [JsonIgnore] public bool ShowsTint => _style != DockStyle.LiquidClear;
 
     [JsonIgnore] public bool IsClassic => _style == DockStyle.Classic;
 
@@ -99,8 +144,23 @@ public sealed class AppSettings : INotifyPropertyChanged
     public double GlassOpacity
     {
         get => _glassOpacity;
-        set => Set(ref _glassOpacity, Clamp(value, 0.05, 0.95));
+        set
+        {
+            if (!Set(ref _glassOpacity, Clamp(value, 0.05, 0.95))) return;
+            OnPropertyChanged(nameof(TintOpacity));
+        }
     }
+
+    /// <summary>
+    /// 底色实际用的不透明度。
+    ///
+    /// 抓屏折射停用之后，液态玻璃和经典都只剩「底色 + 高光」这一层，
+    /// 唯一的区别就落在底色的厚薄上：经典要更实（像四层玻璃），液态要更透。
+    /// 直接拿 <see cref="GlassOpacity"/> 乘一个系数，滑块调起来两边都跟着变。
+    /// </summary>
+    [JsonIgnore]
+    public double TintOpacity =>
+        Math.Min(1, _glassOpacity * (_style == DockStyle.Classic ? 2.1 : 1.0));
 
     /// <summary>Dock 底板圆角半径。</summary>
     public double CornerRadius
@@ -529,14 +589,20 @@ public sealed class AppSettings : INotifyPropertyChanged
 
     // ---------------- Dock 图标显示 ----------------
 
-    /// <summary>最左边那个 AquaDesk 品牌图标（点它开设置）。关掉后右键玻璃条空白处仍能进设置。</summary>
+    /// <summary>
+    /// 最左边那个 AquaDesk 品牌图标（点它开设置）。
+    /// 0.3.11 起这个入口默认搬到状态胶囊右下角，Dock 上默认不显示。
+    /// </summary>
     public bool ShowBrandIcon
     {
         get => _showBrandIcon;
         set => Set(ref _showBrandIcon, value);
     }
 
-    /// <summary>Windows 开始菜单图标（点它弹电源菜单）。</summary>
+    /// <summary>
+    /// Windows 开始菜单图标（点它弹电源菜单）。
+    /// 0.3.11 起默认搬到状态胶囊上排最左边，Dock 上默认不显示。
+    /// </summary>
     public bool ShowWindowsIcon
     {
         get => _showWindowsIcon;
@@ -555,6 +621,23 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _showTrashIcon;
         set => Set(ref _showTrashIcon, value);
+    }
+
+    /// <summary>状态胶囊左上角那个「后台程序」按钮。</summary>
+    public bool ShowBackgroundAppsButton
+    {
+        get => _showBackgroundAppsButton;
+        set => Set(ref _showBackgroundAppsButton, value);
+    }
+
+    /// <summary>
+    /// 电池图标右边那个「100%」。默认关 —— 和 macOS 一样只画电池图形，
+    /// 具体数字去面板里看。开着的话这一项会占两格（电池 + 文字）。
+    /// </summary>
+    public bool ShowBatteryPercent
+    {
+        get => _showBatteryPercent;
+        set => Set(ref _showBatteryPercent, value);
     }
 
     /// <summary>我的电脑（启动台右边那个）。</summary>

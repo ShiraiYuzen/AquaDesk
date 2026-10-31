@@ -6,6 +6,7 @@
         AllowsTransparency="True"
         Background="{x:Null}"
         ShowInTaskbar="False"
+        ShowActivated="False"
         Topmost="True"
         ResizeMode="NoResize"
         WindowStartupLocation="Manual"
@@ -201,6 +202,16 @@
                 </MenuItem.Header>
             </MenuItem>
         </ContextMenu>
+        <!-- 液态透明玻璃的「流动曲面」：让斜向柔光缓慢来回平移，像液体表面在流。
+             由 ApplyStyle 控制开关，其它样式下不跑，免得白烧 CPU。 -->
+        <Storyboard x:Key="FlowStoryboard" RepeatBehavior="Forever" AutoReverse="True">
+            <PointAnimation Storyboard.TargetName="FlowBrush"
+                            Storyboard.TargetProperty="StartPoint"
+                            From="0,0" To="0.5,0.42" Duration="0:0:14" />
+            <PointAnimation Storyboard.TargetName="FlowBrush"
+                            Storyboard.TargetProperty="EndPoint"
+                            From="1,1" To="1.5,1.42" Duration="0:0:14" />
+        </Storyboard>
     </Window.Resources>
 
     <Grid VerticalAlignment="{Binding Settings.DockVerticalAlignment}"
@@ -210,6 +221,7 @@
         <Grid x:Name="GlassRoot"
               HorizontalAlignment="Center"
               VerticalAlignment="Center"
+              Background="Transparent"
               MouseMove="OnSurfaceMouseMove"
               MouseLeave="OnSurfaceMouseLeave">
 
@@ -239,7 +251,116 @@
             <Rectangle RadiusX="{Binding Settings.CornerRadius}"
                        RadiusY="{Binding Settings.CornerRadius}"
                        Fill="{StaticResource GlassTintBrush}"
-                       Opacity="{Binding Settings.GlassOpacity}" />
+                       Opacity="{Binding Settings.TintOpacity}"
+                       Visibility="{Binding Settings.ShowsTint, Converter={StaticResource BoolToVisibility}}" />
+
+            <!-- ===== 液态透明玻璃：几乎无底色，靠镜面高光 + 焦散线 + 极淡色散成形 ===== -->
+
+            <!-- ⑨ 底色：只是一层极淡的暗调，主要通透感靠折射 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.12,1">
+                        <GradientStop Color="#3D1B2540" Offset="0" />
+                        <GradientStop Color="#4D121A2E" Offset="0.55" />
+                        <GradientStop Color="#6605080F" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- ⑩ 顶部镜面高光：贴着顶边的一道极亮的细光，往下 20% 内化开 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#F2FFFFFF" Offset="0" />
+                        <GradientStop Color="#8CFFFFFF" Offset="0.035" />
+                        <GradientStop Color="#26FFFFFF" Offset="0.12" />
+                        <GradientStop Color="#00FFFFFF" Offset="0.26" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- ⑪ 焦散线 A：斜向一道窄亮带，像光被玻璃聚成的亮线 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.75,1">
+                        <GradientStop Color="#00FFFFFF" Offset="0.28" />
+                        <GradientStop Color="#59FFFFFF" Offset="0.46" />
+                        <GradientStop Color="#00FFFFFF" Offset="0.54" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- ⑫ 焦散线 B：另一道更淡的，制造厚度 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0.2,1" EndPoint="1,0">
+                        <GradientStop Color="#00FFFFFF" Offset="0.58" />
+                        <GradientStop Color="#33FFFFFF" Offset="0.74" />
+                        <GradientStop Color="#00FFFFFF" Offset="0.86" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+
+            <!-- ⑬ 柔和轮廓光：银白细边，上亮下暗（不是一圈等亮的描边） -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       StrokeThickness="1.8"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Stroke>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.1,1">
+                        <GradientStop Color="#F2FFFFFF" Offset="0" />
+                        <GradientStop Color="#7ADCE6F5" Offset="0.3" />
+                        <GradientStop Color="#2690A0B8" Offset="0.75" />
+                        <GradientStop Color="#40FFFFFF" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Stroke>
+            </Rectangle>
+
+            <!-- ⑭ 细小彩虹色散：只在下半圈边缘透出一点点 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       StrokeThickness="0.9"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Stroke>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#3DFF5FD2" Offset="0" />
+                        <GradientStop Color="#3D5FD2FF" Offset="0.22" />
+                        <GradientStop Color="#3D5FFFC8" Offset="0.45" />
+                        <GradientStop Color="#3DFFE45F" Offset="0.7" />
+                        <GradientStop Color="#3DFF5FD2" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Stroke>
+            </Rectangle>
+
+            <!-- ⑮ 流动曲面：斜向柔光缓慢平移，像液体表面在流 -->
+            <Rectangle RadiusX="{Binding Settings.CornerRadius}"
+                       RadiusY="{Binding Settings.CornerRadius}"
+                       Opacity="0.35"
+                       Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       IsHitTestVisible="False">
+                <Rectangle.Fill>
+                    <LinearGradientBrush x:Name="FlowBrush" StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#00FFFFFF" Offset="0" />
+                        <GradientStop Color="#2EFFFFFF" Offset="0.32" />
+                        <GradientStop Color="#00FFFFFF" Offset="0.58" />
+                        <GradientStop Color="#1FFFFFFF" Offset="1" />
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
 
             <!-- ② 顶部聚光：光从上方压下来，在顶边内侧积成一团 -->
             <Rectangle RadiusX="{Binding Settings.CornerRadius}"
