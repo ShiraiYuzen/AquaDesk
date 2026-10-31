@@ -149,7 +149,7 @@ gh release create v0.3.3 \
 
 ## 许可证
 
-本仓库中的 DockSprig（原 AquaDesk）原创源码统一采用 [MIT](LICENSE)。第三方材料适用其各自的许可。
+[MIT](LICENSE) · Copyright © 2026 ShiraiYuzen。
 
 ## 致谢
 
