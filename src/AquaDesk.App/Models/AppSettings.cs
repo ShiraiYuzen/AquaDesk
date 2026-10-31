@@ -98,6 +98,26 @@ public sealed class AppSettings : INotifyPropertyChanged
     private double _uiScale = DefaultUiScale();
     private DockPauseMode _pauseMode = DockPauseMode.Never;
 
+    // ---------------- 灵动岛（顶部时间胶囊） ----------------
+
+    /// <summary>是否显示灵动岛（顶部时间胶囊）。</summary>
+    private bool _showIsland = true;
+
+    /// <summary>灵动岛宽度（DIP），只作用于时间形态；播放形态按内容动态拉长。</summary>
+    private double _islandWidth = 88;
+
+    /// <summary>灵动岛高度（DIP），只作用于时间形态。</summary>
+    private double _islandHeight = 30;
+
+    /// <summary>灵动岛 X（相对工作区左上角，DIP）。-1 表示自动水平居中。</summary>
+    private double _islandX = -1;
+
+    /// <summary>灵动岛 Y（相对工作区左上角，DIP）。-1 表示自动贴顶。</summary>
+    private double _islandY = -1;
+
+    /// <summary>true = 固定（不可拖动），false = 可自由拖动。</summary>
+    private bool _islandFixed = true;
+
     // ---------------- 液态玻璃 ----------------
 
     /// <summary>
@@ -608,6 +628,52 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _topMode;
         set => Set(ref _topMode, value);
+    }
+
+    // ---------------- 灵动岛（顶部时间胶囊） ----------------
+
+    /// <summary>是否显示灵动岛（顶部时间胶囊）。关掉后整个胶囊不显示。</summary>
+    public bool ShowIsland
+    {
+        get => _showIsland;
+        set => Set(ref _showIsland, value);
+    }
+
+    /// <summary>
+    /// 灵动岛宽度（DIP），只作用于时间形态（默认 88）；播放形态按内容动态拉长。
+    /// </summary>
+    public double IslandWidth
+    {
+        get => _islandWidth;
+        set => Set(ref _islandWidth, Clamp(value, 60, 500));
+    }
+
+    /// <summary>灵动岛高度（DIP），只作用于时间形态（默认 30）。</summary>
+    public double IslandHeight
+    {
+        get => _islandHeight;
+        set => Set(ref _islandHeight, Clamp(value, 20, 100));
+    }
+
+    /// <summary>灵动岛 X（相对工作区左上角，DIP）。-1 表示自动水平居中。</summary>
+    public double IslandX
+    {
+        get => _islandX;
+        set => Set(ref _islandX, value);
+    }
+
+    /// <summary>灵动岛 Y（相对工作区左上角，DIP）。-1 表示自动贴顶。</summary>
+    public double IslandY
+    {
+        get => _islandY;
+        set => Set(ref _islandY, value);
+    }
+
+    /// <summary>true = 固定（默认，不能拖）；false = 可自由拖动位置。</summary>
+    public bool IslandFixed
+    {
+        get => _islandFixed;
+        set => Set(ref _islandFixed, value);
     }
 
     private static double Clamp(double v, double min, double max) =>

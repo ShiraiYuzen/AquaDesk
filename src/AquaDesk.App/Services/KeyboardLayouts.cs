@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Windows.Media;
+using AquaDesk;
 using AquaDesk.Core;
 using Microsoft.Win32;
 
@@ -84,18 +85,50 @@ public static class KeyboardLayouts
         return result;
     }
 
-    /// <summary>切到指定布局。窗口要接得住 WM_INPUTLANGCHANGEREQUEST，所以发给前台窗口。</summary>
+    /// <summary>
+    /// 面板打开前记录的用户真实输入目标窗口。切换请求要发给它，而不是发给我们自己。
+    ///
+    /// 踩过的坑：点胶囊图标 → 弹出面板 → 点面板里的行，这一串里第二步会把键盘焦点
+    /// 抢到面板的 Popup 上（Popup 不是 NOACTIVATE 窗口），现场再调 GetForegroundWindow()
+    /// 拿到的就是我们自己，把 WM_INPUTLANGCHANGEREQUEST 发给自己等于没切。
+    ///
+    /// WM_INPUTLANGCHANGEREQUEST 按微软文档是发给「焦点窗口」的，不是前台窗口——
+    /// 所以这里记的是焦点窗口，拿不到才退回前台窗口。
+    /// </summary>
+    private static IntPtr _switchTarget;
+
+    /// <summary>在打开面板之前调用：记住用户此刻真正的焦点窗口。</summary>
+    public static void CaptureSwitchTarget()
+    {
+        var hwnd = NativeMethods.GetForegroundWindow();
+        if (hwnd == IntPtr.Zero) return;
+
+        var threadId = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
+        var focus = NativeMethods.GetFocusedWindowOf(threadId);
+        _switchTarget = focus != IntPtr.Zero ? focus : hwnd;
+    }
+
+    /// <summary>切到指定布局。窗口要接得住 WM_INPUTLANGCHANGEREQUEST，所以发给焦点窗口。</summary>
     public static bool Activate(KeyboardLayout layout)
     {
         try
         {
             var hkl = NativeMethods.LoadKeyboardLayout(layout.LayoutId, NativeMethods.KLF_ACTIVATE);
-            if (hkl == IntPtr.Zero) return false;
+            if (hkl == IntPtr.Zero)
+            {
+                App.Log($"切换键盘布局失败：LoadKeyboardLayout({layout.LayoutId}) 返回 0", null);
+                return false;
+            }
 
-            var hwnd = NativeMethods.GetForegroundWindow();
+            // 优先用打开面板前记下的焦点窗口；没有就退回现场的前台窗口
+            var hwnd = _switchTarget != IntPtr.Zero ? _switchTarget : NativeMethods.GetForegroundWindow();
+            App.Log($"切换键盘布局：{layout.LayoutId} hkl=0x{hkl:X} 目标=0x{hwnd:X}(记录0x{_switchTarget:X})", null);
+
             if (hwnd == IntPtr.Zero) return false;
 
-            NativeMethods.PostMessageW(hwnd, NativeMethods.WM_INPUTLANGCHANGEREQUEST, IntPtr.Zero, hkl);
+            // wParam=1（bLangInSystemCharset=TRUE）：中文这类 DBCS 能用系统字符集表达。
+            // 传 0 会被某些依赖系统字体的编辑器当作「不支持」而拒绝切换请求。
+            NativeMethods.PostMessageW(hwnd, NativeMethods.WM_INPUTLANGCHANGEREQUEST, new IntPtr(1), hkl);
             return true;
         }
         catch (Exception ex)

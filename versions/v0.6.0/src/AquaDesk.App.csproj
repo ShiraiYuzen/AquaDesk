@@ -1,0 +1,52 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- 甯?Windows SDK 鐗堟湰鍙锋墠鑳界敤 Windows.Devices.Radios锛圵i-Fi 寮€鍏宠蛋鐨勬槸瀹冿紝
+         鏃х殑 WlanSetInterface 灏勯鎺ュ彛鍦?Killer 杩欑被缃戝崱涓婄洿鎺ヨ繑鍥?87锛?-->
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <RootNamespace>AquaDesk</RootNamespace>
+    <AssemblyName>AquaDesk</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- 鎵樼洏鍥炬爣鐢?WinForms 鐨?NotifyIcon锛屾瘮鎵嬪啓 Shell_NotifyIcon 鐪佷簨 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <!-- WFAC010锛歐inForms 鍒嗘瀽鍣ㄨ姹傛妸 DPI 璁剧疆鎸埌 ApplicationHighDpiMode锛?         浣嗚繖鏄?WPF 搴旂敤锛孌PI 鎰熺煡鍦?app.manifest 閲屽０鏄庯紙PerMonitorV2锛夛紝涓嶉渶瑕佸畠 -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 鐗堟湰鍙?0.4.12锛氭樉绀虹敤 0.4.12锛岀▼搴忛泦/鏂囦欢鐗堟湰蹇呴』鏄函鏁板瓧鍥涙锛屽彇 0.4.12.0 -->
+    <Version>0.6.0</Version>
+    <AssemblyVersion>0.4.12.0</AssemblyVersion>
+    <FileVersion>0.4.12.0</FileVersion>
+    <InformationalVersion>0.6.0</InformationalVersion>
+
+    <Product>AquaDesk</Product>
+    <AssemblyTitle>AquaDesk 姘村厜妗岄潰</AssemblyTitle>
+    <Company>AquaDesk</Company>
+    <ApplicationIcon>Assets\AquaDesk.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+
+    <!-- 鍗曟枃浠跺彂甯冮粯璁ゅ弬鏁帮紝dotnet publish 鏃朵笉蹇呭啀鍐欎竴闀夸覆 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 寮€浜?UseWindowsForms 鍚?SDK 浼氭妸 System.Drawing / System.Windows.Forms 濉炶繘闅愬紡 using锛?         璺?WPF 鐨?Color / Point / MouseEventArgs 鍏ㄩ潰鎾炲悕锛岃繖閲屽幓鎺夛紝闇€瑕佺殑鍦版柟鏄惧紡 using -->
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 璁剧疆椤垫爣棰樻爮涔熻鐢ㄨ繖涓浘鏍囷紝鎵€浠ラ澶栨墦鍖呮垚 WPF 璧勬簮 -->
+    <Resource Include="Assets\AquaDesk.ico" />
+  </ItemGroup>
+
+</Project>

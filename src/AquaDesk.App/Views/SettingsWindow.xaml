@@ -1047,6 +1047,81 @@
 
                         <StackPanel Style="{StaticResource Section}" Margin="4,8,0,9">
                             <Border Style="{StaticResource SectionBar}" />
+                            <TextBlock Text="灵动岛" Style="{StaticResource SectionHeader}" />
+                        </StackPanel>
+
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="显示灵动岛" Style="{StaticResource RowLabel}" />
+                                        <CheckBox Style="{StaticResource SwitchStyle}"
+                                                  HorizontalAlignment="Right"
+                                                  IsChecked="{Binding ShowIsland, Mode=TwoWay}" />
+                                    </Grid>
+                                    <TextBlock Text="屏幕顶部中间的时间胶囊；放歌时会拉长成播放器"
+                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="固定位置" Style="{StaticResource RowLabel}" />
+                                        <CheckBox Style="{StaticResource SwitchStyle}"
+                                                  HorizontalAlignment="Right"
+                                                  IsChecked="{Binding IslandFixed, Mode=TwoWay}" />
+                                    </Grid>
+                                    <TextBlock Text="固定时顶部居中、点击穿透；关掉后可以拖着走，位置会自动保存"
+                                               Style="{StaticResource RowHint}" Margin="0,4,58,0" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="宽度" Style="{StaticResource RowLabel}" />
+                                        <TextBlock Style="{StaticResource ValueLabel}"
+                                                   Text="{Binding IslandWidth, StringFormat={}{0:F0} px}" />
+                                    </Grid>
+                                    <Slider Style="{StaticResource MacSlider}"
+                                            Minimum="60" Maximum="500" TickFrequency="10"
+                                            Value="{Binding IslandWidth, Mode=TwoWay}" />
+                                    <TextBlock Text="只作用于时间形态；播放形态按内容自动拉长"
+                                               Style="{StaticResource RowHint}" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="高度" Style="{StaticResource RowLabel}" />
+                                        <TextBlock Style="{StaticResource ValueLabel}"
+                                                   Text="{Binding IslandHeight, StringFormat={}{0:F0} px}" />
+                                    </Grid>
+                                    <Slider Style="{StaticResource MacSlider}"
+                                            Minimum="20" Maximum="100" TickFrequency="2"
+                                            Value="{Binding IslandHeight, Mode=TwoWay}" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="恢复初始位置" Style="{StaticResource RowLabel}" />
+                                        <Button Content="恢复" Padding="16,6"
+                                                HorizontalAlignment="Right"
+                                                Style="{StaticResource SecondaryButton}"
+                                                Click="OnResetIsland" />
+                                    </Grid>
+                                    <TextBlock Text="位置回到顶部居中，尺寸回到 88×30"
+                                               Style="{StaticResource RowHint}" Margin="0,4,96,0" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <StackPanel Style="{StaticResource Section}" Margin="4,8,0,9">
+                            <Border Style="{StaticResource SectionBar}" />
                             <TextBlock Text="性能与暂停" Style="{StaticResource SectionHeader}" />
                         </StackPanel>
 

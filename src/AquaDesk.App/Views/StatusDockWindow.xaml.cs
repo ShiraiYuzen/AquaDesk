@@ -549,6 +549,12 @@ public partial class StatusDockWindow : Window
     private void ShowPanel(FrameworkElement anchor, Action<MenuBarPanel> configure)
     {
         ClosePanel();
+
+        // 面板还没弹出，此刻前台还是用户正在用的应用 —— 先记下来。
+        // 等面板打开、用户点面板里的行时，焦点已经被抢到面板 Popup 上，
+        // 再现场读 GetForegroundWindow() 拿到的是我们自己（详见 KeyboardLayouts.CaptureSwitchTarget）。
+        KeyboardLayouts.CaptureSwitchTarget();
+
         configure(MenuPanel);
 
         // 延后一帧再打开，等面板量出尺寸才好定位

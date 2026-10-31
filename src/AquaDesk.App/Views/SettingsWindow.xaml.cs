@@ -121,6 +121,12 @@ public partial class SettingsWindow : Window
                 _settings.HideTaskbar = defaults.HideTaskbar;
                 _settings.HideDesktopIcons = defaults.HideDesktopIcons;
                 _settings.PauseMode = defaults.PauseMode;
+                _settings.ShowIsland = defaults.ShowIsland;
+                _settings.IslandFixed = defaults.IslandFixed;
+                _settings.IslandWidth = defaults.IslandWidth;
+                _settings.IslandHeight = defaults.IslandHeight;
+                _settings.IslandX = defaults.IslandX;
+                _settings.IslandY = defaults.IslandY;
                 break;
 
             // case 4（关于）没有可恢复的项
@@ -167,6 +173,13 @@ public partial class SettingsWindow : Window
         _settings.HideTaskbar = defaults.HideTaskbar;
         _settings.HideDesktopIcons = defaults.HideDesktopIcons;
         _settings.PauseMode = defaults.PauseMode;
+
+        _settings.ShowIsland = defaults.ShowIsland;
+        _settings.IslandFixed = defaults.IslandFixed;
+        _settings.IslandWidth = defaults.IslandWidth;
+        _settings.IslandHeight = defaults.IslandHeight;
+        _settings.IslandX = defaults.IslandX;
+        _settings.IslandY = defaults.IslandY;
     }
 
     private void OnOpenSettingsFolder(object sender, RoutedEventArgs e) =>
@@ -191,6 +204,15 @@ public partial class SettingsWindow : Window
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    /// <summary>灵动岛恢复默认：位置回到顶部居中、尺寸回到 88×30。</summary>
+    private void OnResetIsland(object sender, RoutedEventArgs e)
+    {
+        _settings.IslandX = -1;
+        _settings.IslandY = -1;
+        _settings.IslandWidth = 88;
+        _settings.IslandHeight = 30;
+    }
 
     // ---------------- 保存 ----------------
 

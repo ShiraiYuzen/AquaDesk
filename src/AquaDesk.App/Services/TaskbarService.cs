@@ -38,8 +38,27 @@ public static class TaskbarService
             if (visible)
             {
                 StopGuard();
-                NativeMethods.ShowWindow(taskbar, NativeMethods.SW_SHOW);
-                SetState(taskbar, NativeMethods.ABS_ALWAYSONTOP);
+
+                // 关键顺序：先 SW_SHOW 让窗口「可见」，再 ABM_SETSTATE(ALWAYSONTOP)
+                // 清掉自动隐藏位。
+                // Win11 的任务栏是 XAML 进程——窗口还处在隐藏态时 ABM_SETSTATE 不生效，
+                // 必须先可见才能把「自动隐藏」位清掉，否则 Shell 下一帧又把它收走，
+                // 表现为「API 状态健康、但屏幕上看不到任务栏」。
+                RestoreTaskbar(taskbar);
+
+                // 偶尔 Shell 抢在中间又自动收一次（自动隐藏的残留动画），
+                // 用非阻塞定时器补几刀兜底，不卡 UI。
+                var retry = new DispatcherTimer(DispatcherPriority.Background)
+                {
+                    Interval = TimeSpan.FromMilliseconds(150)
+                };
+                var tries = 0;
+                retry.Tick += (_, _) =>
+                {
+                    RestoreTaskbar(taskbar);
+                    if (++tries >= 3) retry.Stop();
+                };
+                retry.Start();
             }
             else
             {
@@ -114,5 +133,34 @@ public static class TaskbarService
 
         var state = (long)NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETSTATE, ref data);
         return (state & NativeMethods.ABS_AUTOHIDE) != 0;
+    }
+
+    /// <summary>
+    /// 把任务栏恢复到「常驻显示」状态：先让窗口可见，再清掉自动隐藏位，
+    /// 最后把被 Shell 在自动隐藏时收起的子窗口（开始按钮、图标列表）逐个显示回来。
+    /// </summary>
+    private static void RestoreTaskbar(IntPtr taskbar)
+    {
+        NativeMethods.ShowWindow(taskbar, NativeMethods.SW_SHOW);
+        SetState(taskbar, NativeMethods.ABS_ALWAYSONTOP);
+        ShowChildren(taskbar);
+    }
+
+    /// <summary>
+    /// 把任务栏容器里所有隐藏的子窗口显示回来。
+    /// 目标就是「开始按钮」「任务栏图标列表」这类被 Shell 在自动隐藏时收起来的子窗口；
+    /// 托盘（TrayNotifyWnd）本来就没藏，重复 SW_SHOW 无副作用。
+    /// </summary>
+    private static void ShowChildren(IntPtr taskbar)
+    {
+        NativeMethods.EnumChildWindows(taskbar, (child, _) =>
+        {
+            // EnumChildWindows 枚举到的句柄都是有效的，直接看可见性即可
+            if (!NativeMethods.IsWindowVisible(child))
+            {
+                NativeMethods.ShowWindow(child, NativeMethods.SW_SHOW);
+            }
+            return true;
+        }, IntPtr.Zero);
     }
 }
