@@ -17,13 +17,55 @@ public static class SettingsStore
 
     private static string FilePath => Path.Combine(RootDirectory, "settings.json");
 
+    /// <summary>
+    /// 统一风格：没开「允许切换外观」时，界面固定用液态透明玻璃。
+    ///
+    /// 读配置时做一次，免得手改 JSON 或旧配置把界面停在某个设置页里根本看不到的样式上。
+    /// 改完立刻落盘：只改内存的话，配置文件里还写着别的样式，对不上会让人以为没生效。
+    /// </summary>
+    internal static void EnforceLockedStyle(AppSettings settings)
+    {
+        if (settings.AllowStyleSwitch || settings.Style == Models.DockStyle.LiquidClear) return;
+
+        settings.Style = Models.DockStyle.LiquidClear;
+        Save(settings);
+    }
+
     public static AppSettings Load()
     {
         try
         {
             if (!File.Exists(FilePath)) return new AppSettings();
             var json = File.ReadAllText(FilePath);
-            return JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+
+            // 没解锁「允许切换外观」就统一用液态透明玻璃
+            EnforceLockedStyle(settings);
+
+            // 一次性迁移：0.3.5 之前的配置可能停在「液态透明玻璃」上，
+            // 那是从旧版本点过的状态，不是用户这次的主动选择。统一回到默认的液态玻璃，
+            // 之后再切换就按用户自己的来（SettingsVersion 已经写成 1）。
+            //
+            // 必须立刻落盘：只改内存的话，用户切到经典、重启、又被迁移拉回液态玻璃 ——
+            // 表现就是「经典选了没用」。
+            if (settings.SettingsVersion < 1)
+            {
+                settings.Style = Models.DockStyle.Liquid;
+                settings.SettingsVersion = 1;
+                Save(settings);
+            }
+
+            // 一次性迁移 2：Windows / AquaDesk 两个入口默认搬到状态胶囊，
+            // Dock 上默认不再摆这两块。老配置里存着 true，不迁移的话它们会顽固地留在 Dock 上。
+            if (settings.SettingsVersion < 2)
+            {
+                settings.ShowWindowsIcon = false;
+                settings.ShowBrandIcon = false;
+                settings.SettingsVersion = 2;
+                Save(settings);
+            }
+
+            return settings;
         }
         catch (Exception ex)
         {

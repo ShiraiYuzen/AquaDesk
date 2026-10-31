@@ -60,6 +60,14 @@ public partial class DockWindow : Window
             PositionDock();
             UpdateGlassGeometry();
         };
+
+        // 玻璃条自己的尺寸变化（悬停放大、图标增减、换停靠边）——
+        // 状态胶囊靠这个贴边，不然放大时玻璃条会涨过去把它压住。
+        GlassRoot.SizeChanged += (_, _) =>
+        {
+            App.Trace($"玻璃条：{GlassRoot.ActualWidth:F0}×{GlassRoot.ActualHeight:F0}");
+            GlassBarChanged?.Invoke(this, EventArgs.Empty);
+        };
         LocationChanged += (_, _) => UpdateGlassGeometry();
         Closed += (_, _) =>
         {
@@ -271,13 +279,16 @@ public partial class DockWindow : Window
     /// <summary>按当前风格决定要不要开折射。经典风格连抓屏都不做，CPU 占用回到 0。</summary>
     private void ApplyStyle()
     {
-        if (_vm.Settings.IsLiquid && !_paused)
+        // 抓屏折射已停用（原因见 StartRefraction），现在只负责把排除标记清干净，
+        // 保证三种外观下 Dock 都能正常出现在截图和录屏里。
+        StopRefraction();
+        RefractionLayer.Visibility = Visibility.Collapsed;
+
+        // 流动曲面只在液态透明玻璃下跑
+        if (FindResource("FlowStoryboard") is Storyboard flow)
         {
-            StartRefraction();
-        }
-        else
-        {
-            StopRefraction();
+            if (_vm.Settings.IsLiquidClear) flow.Begin(this, true);
+            else flow.Stop(this);
         }
     }
 
@@ -329,14 +340,6 @@ public partial class DockWindow : Window
     {
         StopRefraction();
 
-        // StopRefraction 会把「排除捕获」撤掉（那是给经典风格用的）。
-        // 但暂停不是换风格，Dock 不该跑到用户的截图/录屏里，这里重新打上。
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd != IntPtr.Zero)
-        {
-            NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
-        }
-
         _runningTimer?.Stop();
 
         // 抓屏缓冲和折射位图是按窗口尺寸算的，通常几百 KB 到 1MB，直接丢掉最干脆
@@ -380,6 +383,7 @@ public partial class DockWindow : Window
         if (e.PropertyName is nameof(AppSettings.Style))
         {
             ApplyStyle();
+            ThemeManager.Apply(_vm.Settings.Style);
         }
 
         // 改了暂停策略，立刻按新策略重算一次，不用等下一个轮询周期
@@ -478,6 +482,37 @@ public partial class DockWindow : Window
     }
 
     /// <summary>
+    /// 整体左移多少（DIP）。Dock 右侧挂了一条状态胶囊，由它来设置这个值，
+    /// 让「Dock + 胶囊」作为一个整体居中，而不是 Dock 自己居中、胶囊吊在右边。
+    /// </summary>
+    public double HorizontalShift { get; set; }
+
+    /// <summary>玻璃条的尺寸变了（悬停放大 / 图标增减 / 换停靠边 / 改缩放）。</summary>
+    public event EventHandler? GlassBarChanged;
+
+    /// <summary>
+    /// 玻璃条在屏幕上的实际矩形（DIP）。
+    ///
+    /// 不能拿窗口矩形来推算：窗口高度是「玻璃条 + 放大余量」，水平方向还多留了两份
+    /// ExpandReserve，而玻璃条本身是跟着图标内容居中的 —— 外面套了几层换算之后，
+    /// 算出来的边和实际的边差出几十像素（状态胶囊就是这么被撑高、又被压住的）。
+    /// 直接问 WPF 要玻璃条自己的矩形，位置和高度都准。
+    /// </summary>
+    public Rect GlassBarBounds()
+    {
+        if (!IsLoaded || GlassRoot.ActualWidth <= 0 || GlassRoot.ActualHeight <= 0) return Rect.Empty;
+
+        var origin = GlassRoot.PointToScreen(new Point(0, 0));
+        var dpi = VisualTreeHelper.GetDpi(this);
+
+        return new Rect(
+            origin.X / dpi.DpiScaleX,
+            origin.Y / dpi.DpiScaleY,
+            GlassRoot.ActualWidth,
+            GlassRoot.ActualHeight);
+    }
+
+    /// <summary>
     /// 贴底部居中。
     ///
     /// **不占工作区**：Dock 是浮层，最大化窗口应该铺满整块屏幕（顶到菜单栏、底到屏幕边），
@@ -493,7 +528,7 @@ public partial class DockWindow : Window
         switch (_vm.Settings.Edge)
         {
             case DockEdge.Top:
-                Left = wa.Left + (wa.Width - ActualWidth) / 2;
+                Left = wa.Left + (wa.Width - ActualWidth) / 2 - HorizontalShift;
                 Top = wa.Top;
                 break;
 
@@ -508,30 +543,24 @@ public partial class DockWindow : Window
                 break;
 
             default:
-                Left = wa.Left + (wa.Width - ActualWidth) / 2;
+                Left = wa.Left + (wa.Width - ActualWidth) / 2 - HorizontalShift;
                 Top = wa.Bottom - ActualHeight;
                 break;
         }
 
-        // 布局排查用：一眼看出工作区被谁啃掉了一块
-        App.Log($"布局：屏幕 {SystemParameters.PrimaryScreenWidth}×{SystemParameters.PrimaryScreenHeight}，" +
+        // 布局排查用：一眼看出工作区被谁啃掉了一块（高频，加 --verbose 才落盘）
+        App.Trace($"布局：屏幕 {SystemParameters.PrimaryScreenWidth}×{SystemParameters.PrimaryScreenHeight}，" +
                 $"工作区 {wa.Left},{wa.Top} {wa.Width}×{wa.Height}（底 {wa.Bottom}），" +
-                $"Dock Top={Top:F1} Height={ActualHeight:F1}", null);
+                $"Dock Top={Top:F1} Height={ActualHeight:F1}");
     }
 
     /// <summary>
     /// 关键一步：NOACTIVATE 让 Dock 点下去不抢焦点（否则点图标会把当前窗口弄失焦），
     /// TOOLWINDOW 让它不出现在 Alt+Tab 里。
+    /// 另外要挡掉 WM_MOUSEACTIVATE —— 只设扩展样式的话，WPF 仍会在鼠标按下时
+    /// 把键盘焦点挪到 Dock 上，用户回应用里打字就没反应了。
     /// </summary>
-    private void ApplyNonActivatingStyle()
-    {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return;
-
-        var exStyle = NativeMethods.GetExtendedStyle(hwnd);
-        exStyle |= NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW;
-        NativeMethods.SetExtendedStyle(hwnd, exStyle);
-    }
+    private void ApplyNonActivatingStyle() => NonActivatingWindow.Apply(this);
 
     // ---------------- 放大 + 邻居让位 ----------------
 
@@ -735,45 +764,34 @@ public partial class DockWindow : Window
     /// </summary>
     private void StartRefraction()
     {
-        if (_glassRunning) return;
-
-        var hwnd = new WindowInteropHelper(this).Handle;
-        if (hwnd == IntPtr.Zero) return;
-
-        if (!NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE))
-        {
-            RefractionLayer.Visibility = Visibility.Collapsed;
-            LogGlass("excluded=false reason=SetWindowDisplayAffinity-failed");
-            return;
-        }
-
-        // 自检：抓两次同一块区域——一次带排除、一次不带。
-        // 如果两次完全一样，说明排除根本没生效，那就不能用折射（否则会自己拍自己）。
-        if (!VerifyExclusion(hwnd))
-        {
-            RefractionLayer.Visibility = Visibility.Collapsed;
-            LogGlass("excluded=false reason=self-check-failed");
-            return;
-        }
-
-        LogGlass("excluded=true");
-
-        _glassRunning = true;
-        UpdateGlassGeometry();
-
-        _glassWorker = new Thread(GlassWorkerLoop)
-        {
-            IsBackground = true,
-            Name = "AquaDesk.Glass",
-            Priority = ThreadPriority.BelowNormal
-        };
-        _glassWorker.Start();
+        // 【已停用】抓屏折射的前提是把自己从屏幕捕获里排除（WDA_EXCLUDEFROMCAPTURE），
+        // 代价是 Dock 在任何截图 / 录屏 / 远程桌面里都拍不到 —— 用户反馈这是硬伤，
+        // 而且每次鼠标移动引起的尺寸变化都要重算折射几何，画面一直在抖。
+        //
+        // 现在玻璃效果全部由 XAML 里的多层高光、顶部聚光、色散轮廓实现，
+        // RefractionLayer 始终隐藏。换来三件事：能截图、不闪、少一个 40~50fps 的抓屏线程。
+        // GlassRefractor / ScreenSampler 留着没删 —— 将来若要改成「可选的折射」，
+        // 在这里接回来即可（记得同时处理捕获排除）。
+        RefractionLayer.Visibility = Visibility.Collapsed;
+        StopRefraction();
     }
 
-    /// <summary>停掉折射线程，并把「从捕获中排除」的标记撤掉——经典风格下 Dock 应该能正常出现在截图里。</summary>
+    /// <summary>
+    /// 停掉折射线程，并把「从捕获中排除」的标记撤掉 —— Dock 要能被正常截图。
+    /// 现在折射本身已经不启用了（见 <see cref="StartRefraction"/>），这里主要起兜底作用：
+    /// 老版本留下的排除标记、以及切换样式时的残留，都在这里清干净。
+    /// </summary>
     private void StopRefraction()
     {
         _glassRunning = false;
+
+        // 折射线程现在不会启动了，但留着这段等待：万一将来把折射接回来，
+        // 这里能保证退出的那一帧不会读到已经释放的缓冲。
+        if (_glassWorker is { IsAlive: true })
+        {
+            _glassWorker.Join(TimeSpan.FromMilliseconds(200));
+        }
+
         _glassWorker = null;
         Volatile.Write(ref _glassGeometry, null);
 
@@ -782,28 +800,6 @@ public partial class DockWindow : Window
         {
             NativeMethods.SetWindowDisplayAffinity(hwnd, 0 /* WDA_NONE */);
         }
-    }
-
-    /// <summary>临时取消排除再抓一次，像素完全一致就说明排除无效。</summary>
-    private bool VerifyExclusion(IntPtr hwnd)
-    {
-        var dpi = VisualTreeHelper.GetDpi(this);
-        var origin = GlassRoot.PointToScreen(new Point(0, 0));
-        var width = Math.Max(8, (int)Math.Round(GlassRoot.ActualWidth * dpi.DpiScaleX));
-        var height = Math.Max(8, (int)Math.Round(GlassRoot.ActualHeight * dpi.DpiScaleY));
-        var size = width * height * 4;
-
-        var withExclusion = new byte[size];
-        var withoutExclusion = new byte[size];
-
-        var capturedWith = ScreenSampler.Capture((int)origin.X, (int)origin.Y, width, height, withExclusion);
-        NativeMethods.SetWindowDisplayAffinity(hwnd, 0 /* WDA_NONE */);
-        var capturedWithout = ScreenSampler.Capture((int)origin.X, (int)origin.Y, width, height, withoutExclusion);
-        NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
-
-        if (!capturedWith || !capturedWithout) return false;
-
-        return !withExclusion.AsSpan().SequenceEqual(withoutExclusion);
     }
 
     private static void LogGlass(string message)
@@ -854,7 +850,8 @@ public partial class DockWindow : Window
             step, padding,
             _vm.Settings.CornerRadius * dpi.DpiScaleX,
             15 * dpi.DpiScaleX,
-            1.15,
+            // 液态透明玻璃要的是「轻微折射」，形变收一半
+            _vm.Settings.IsLiquidClear ? 0.62 : 1.15,
             dpi.DpiScaleX));
     }
 

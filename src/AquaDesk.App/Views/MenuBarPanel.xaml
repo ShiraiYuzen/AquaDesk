@@ -246,5 +246,38 @@
                          Margin="-6,0,0,0" />
             </Grid>
         </StackPanel>
+
+        <!-- ================= 后台程序 ================= -->
+        <StackPanel x:Name="BackgroundView" Visibility="Collapsed">
+            <Grid Margin="4,2,4,0">
+                <TextBlock Text="后台程序" Foreground="#F2FFFFFF" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock x:Name="BackgroundCount" Text=""
+                           Foreground="#8CFFFFFF" FontSize="11.5"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </Grid>
+
+            <TextBlock x:Name="BackgroundHint" Text="正在读取…"
+                       Foreground="#8CFFFFFF" FontSize="11"
+                       Margin="4,3,4,2" TextWrapping="Wrap" />
+
+            <ScrollViewer MaxHeight="368" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          Margin="0,4,0,0">
+                <StackPanel x:Name="BackgroundList" />
+            </ScrollViewer>
+
+            <Border Height="1" Background="#1FFFFFFF" Margin="0,8,0,6" />
+
+            <Grid>
+                <Button Content="刷新" Style="{StaticResource LinkButton}"
+                        Foreground="#0A84FF" HorizontalAlignment="Left"
+                        Click="OnBackgroundRefresh" />
+                <TextBlock Text="点一行切回程序，托盘程序只能结束"
+                           Foreground="#66FFFFFF" FontSize="10.5"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"
+                           Margin="0,0,6,0" />
+            </Grid>
+        </StackPanel>
+
     </Grid>
 </UserControl>

@@ -25,7 +25,11 @@ public static class WindowActivator
             NativeMethods.ShowWindow(hwnd, NativeMethods.SW_RESTORE);
         }
 
-        if (NativeMethods.GetForegroundWindow() == hwnd) return true;
+        if (NativeMethods.GetForegroundWindow() == hwnd)
+        {
+            EnsureFocus(hwnd);
+            return true;
+        }
 
         var targetThread = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
         var currentThread = NativeMethods.GetCurrentThreadId();
@@ -39,20 +43,57 @@ public static class WindowActivator
             NativeMethods.BringWindowToTop(hwnd);
             var ok = NativeMethods.SetForegroundWindow(hwnd);
 
-            // 焦点必须单独给：不挂线程时这句对别的线程的窗口无效
-            if (attached) NativeMethods.SetFocus(hwnd);
-
             if (!ok || NativeMethods.GetForegroundWindow() != hwnd)
             {
                 // Alt+Tab 那个入口，不受前台锁限制
                 NativeMethods.SwitchToThisWindow(hwnd, true);
             }
-
-            return NativeMethods.GetForegroundWindow() == hwnd;
         }
         finally
         {
             if (attached) NativeMethods.AttachThreadInput(currentThread, targetThread, false);
+        }
+
+        // 焦点在脱离之后再补：挂在别的线程上强设焦点，会把应用自己的输入控件焦点顶掉，
+        // 表现就是「窗口到了最前面，但打字没反应，得再点一下」。
+        EnsureFocus(hwnd);
+
+        var foreground = NativeMethods.GetForegroundWindow();
+        App.Log($"激活窗口：目标={hwnd} 前台={foreground} 成功={foreground == hwnd}", null);
+
+        return foreground == hwnd;
+    }
+
+    /// <summary>
+    /// 只在「目标线程压根没有焦点窗口」时补一次焦点。
+    /// 应用自己已经恢复好焦点时不要动它 —— 顶层框架拿到焦点等于把输入焦点抢走了。
+    /// </summary>
+    private static void EnsureFocus(IntPtr hwnd)
+    {
+        var thread = NativeMethods.GetWindowThreadProcessId(hwnd, out _);
+        if (thread == 0) return;
+
+        var info = new NativeMethods.GUITHREADINFO
+        {
+            cbSize = System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.GUITHREADINFO>()
+        };
+
+        if (!NativeMethods.GetGUIThreadInfo(thread, ref info)) return;
+        if (info.hwndFocus != IntPtr.Zero) return;
+
+        var target = info.hwndActive != IntPtr.Zero ? info.hwndActive : hwnd;
+        var current = NativeMethods.GetCurrentThreadId();
+
+        var attached = thread != current
+                       && NativeMethods.AttachThreadInput(current, thread, true);
+
+        try
+        {
+            NativeMethods.SetFocus(target);
+        }
+        finally
+        {
+            if (attached) NativeMethods.AttachThreadInput(current, thread, false);
         }
     }
 }
