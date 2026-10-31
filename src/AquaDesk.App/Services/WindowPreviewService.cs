@@ -43,7 +43,6 @@ public static class WindowPreviewService
     public static List<OpenWindow> Enumerate()
     {
         var found = new List<OpenWindow>();
-        var self = (uint)Environment.ProcessId;
 
         NativeMethods.EnumWindows((hwnd, _) =>
         {
@@ -76,7 +75,11 @@ public static class WindowPreviewService
             if (string.IsNullOrWhiteSpace(title)) return true;
 
             NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
-            if (processId == self) return true;
+
+            // 自己的浮层（Dock / 两个胶囊 / 启动台）不能列 —— 否则 Dock 会预览它自己。
+            // 但设置窗口这类「正常窗口」要列出来：用户开着设置页时，那本来就是桌面上多出来的一个窗口。
+            // （0.4.5 之前这里按 pid 一刀切，设置窗口永远不出现在预览条里）
+            if (OverlayZOrder.IsOverlay(hwnd)) return true;
 
             if (!FirstSeen.ContainsKey(hwnd)) FirstSeen[hwnd] = ++_seenCounter;
 

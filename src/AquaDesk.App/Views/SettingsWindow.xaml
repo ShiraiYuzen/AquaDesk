@@ -1,6 +1,7 @@
 <Window x:Class="AquaDesk.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:AquaDesk.Models"
         Title="AquaDesk 设置"
         Icon="pack://application:,,,/Assets/AquaDesk.ico"
         Width="880" Height="668"
@@ -129,41 +130,6 @@
                                 <Setter TargetName="Track" Property="Background" Value="#34C759" />
                                 <Setter TargetName="Knob" Property="HorizontalAlignment" Value="Right" />
                                 <Setter TargetName="Knob" Property="Margin" Value="0,0,2,0" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- 单选行：左边文字、右边圆圈，整行都能点 -->
-        <Style x:Key="RadioRow" TargetType="RadioButton">
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Foreground" Value="{DynamicResource UiTextPrimaryBrush}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Row" CornerRadius="8" Background="Transparent" Padding="10,9">
-                            <Grid>
-                                <ContentPresenter VerticalAlignment="Center" />
-
-                                <Grid Width="18" Height="18"
-                                      HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <Ellipse x:Name="Ring" Stroke="#C7C7CE" StrokeThickness="1.4"
-                                             Fill="Transparent" />
-                                    <Ellipse x:Name="Dot" Width="9" Height="9"
-                                             Fill="#0A84FF" Visibility="Collapsed" />
-                                </Grid>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource UiTabSelectedBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Row" Property="Background" Value="#F3F8FF" />
-                                <Setter TargetName="Ring" Property="Stroke" Value="#0A84FF" />
-                                <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -306,7 +272,8 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bg" CornerRadius="8"
-                                Background="White" BorderBrush="#DCDCE2" BorderThickness="1"
+                                Background="{DynamicResource UiFieldBgBrush}"
+                                BorderBrush="{DynamicResource UiFieldBorderBrush}" BorderThickness="1"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -316,6 +283,100 @@
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Bg" Property="Background" Value="#EBEBF0" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ============ 下拉框 ============
+             系统那套 ComboBox 是浅色立体样式，放进深色设置页里像块补丁，
+             所以整只重画：圆角浅底 + 右侧一道细箭线，展开是一张和右键菜单同色的卡片。 -->
+        <Style x:Key="DropdownItem" TargetType="ComboBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource MenuFgBrush}" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="Row" CornerRadius="7" Background="Transparent"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource MenuHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="#330A84FF" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="DropdownStyle" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{DynamicResource UiTextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="MinWidth" Value="236" />
+            <Setter Property="ItemContainerStyle" Value="{StaticResource DropdownItem}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <Border x:Name="Box" CornerRadius="7"
+                                    Background="{DynamicResource UiFieldBgBrush}"
+                                    BorderBrush="{DynamicResource UiFieldBorderBrush}" BorderThickness="1" />
+
+                            <ContentPresenter x:Name="SelectionSite" Margin="10,5,26,5"
+                                              VerticalAlignment="Center" IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              ContentStringFormat="{TemplateBinding SelectionBoxItemStringFormat}" />
+
+                            <Path Data="M0,0 L5,5 L10,0" StrokeThickness="1.4"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  Stroke="{DynamicResource UiTextSecondaryBrush}"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  Margin="0,0,10,0" IsHitTestVisible="False" />
+
+                            <!-- 整块都能点开：ToggleButton 铺在最上面，模板清空成透明 -->
+                            <ToggleButton Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="Transparent" />
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+
+                            <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True"
+                                   Focusable="False" PopupAnimation="Fade"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}">
+                                <Border CornerRadius="10" Padding="4" Margin="0,4,0,0"
+                                        Background="{DynamicResource MenuBgBrush}"
+                                        BorderBrush="{DynamicResource MenuBorderBrush}" BorderThickness="1"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <Border.Effect>
+                                        <DropShadowEffect BlurRadius="18" ShadowDepth="3"
+                                                          Opacity="0.20" Color="#000000" />
+                                    </Border.Effect>
+                                    <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained" />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource UiTabSelectedBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -422,11 +483,23 @@
                                                 </Style>
                                             </Button.Style>
                                         </Button>
-                                        <Button Content="完成" Padding="28,7"
-                                                HorizontalAlignment="Right"
-                                                Style="{StaticResource PrimaryButton}"
-                                                IsDefault="True"
-                                                Click="OnClose" />
+
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                                    VerticalAlignment="Center">
+                                            <!-- 只有真的改过设置才出现；保存完自己收起来 -->
+                                            <TextBlock x:Name="SavedHint" Text="已保存" Visibility="Collapsed"
+                                                       Foreground="{DynamicResource UiTextTertiaryBrush}"
+                                                       FontSize="11.5" VerticalAlignment="Center"
+                                                       Margin="0,0,10,0" />
+                                            <Button x:Name="SaveButton" Content="保存" Padding="22,7"
+                                                    Margin="0,0,8,0" Visibility="Collapsed"
+                                                    Style="{StaticResource PrimaryButton}"
+                                                    Click="OnSave" />
+                                            <Button Content="完成" Padding="24,7"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    IsDefault="True"
+                                                    Click="OnClose" />
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -661,24 +734,21 @@
 
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
-                                <StackPanel Margin="8,8,8,4">
-                                    <TextBlock Text="停靠位置" Style="{StaticResource RowLabel}" Margin="10,4,0,4" />
-
-                                    <RadioButton GroupName="DockEdge" Style="{StaticResource RadioRow}"
-                                                 Content="屏幕底部"
-                                                 IsChecked="{Binding EdgeBottom, Mode=TwoWay}" />
-
-                                    <RadioButton GroupName="DockEdge" Style="{StaticResource RadioRow}"
-                                                 Content="屏幕顶部"
-                                                 IsChecked="{Binding EdgeTop, Mode=TwoWay}" />
-
-                                    <RadioButton GroupName="DockEdge" Style="{StaticResource RadioRow}"
-                                                 Content="屏幕左侧（竖排）"
-                                                 IsChecked="{Binding EdgeLeft, Mode=TwoWay}" />
-
-                                    <RadioButton GroupName="DockEdge" Style="{StaticResource RadioRow}"
-                                                 Content="屏幕右侧（竖排）"
-                                                 IsChecked="{Binding EdgeRight, Mode=TwoWay}" />
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
+                                        <TextBlock Text="停靠位置" Style="{StaticResource RowLabel}"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox Style="{StaticResource DropdownStyle}"
+                                                  SelectedValue="{Binding Edge, Mode=TwoWay}"
+                                                  SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="屏幕底部" Tag="{x:Static models:DockEdge.Bottom}" />
+                                            <ComboBoxItem Content="屏幕顶部" Tag="{x:Static models:DockEdge.Top}" />
+                                            <ComboBoxItem Content="屏幕左侧（竖排）" Tag="{x:Static models:DockEdge.Left}" />
+                                            <ComboBoxItem Content="屏幕右侧（竖排）" Tag="{x:Static models:DockEdge.Right}" />
+                                        </ComboBox>
+                                    </Grid>
+                                    <TextBlock Text="换边会重排 Dock 和两个胶囊；左右停靠时图标竖着排"
+                                               Style="{StaticResource RowHint}" Margin="0,4,0,0" />
                                 </StackPanel>
 
                                 <Border Style="{StaticResource CardDivider}" />
@@ -834,6 +904,27 @@
 
                                 <StackPanel Style="{StaticResource Row}">
                                     <Grid>
+                                        <TextBlock Text="窗口层级" Style="{StaticResource RowLabel}"
+                                                   VerticalAlignment="Center" />
+                                        <ComboBox Style="{StaticResource DropdownStyle}"
+                                                  SelectedValue="{Binding TopMode, Mode=TwoWay}"
+                                                  SelectedValuePath="Tag">
+                                            <ComboBoxItem Content="最大化时让开（默认）"
+                                                          Tag="{x:Static models:DockTopMode.SinkWhenCovered}" />
+                                            <ComboBoxItem Content="始终显示在最上层（不包括全屏应用）"
+                                                          Tag="{x:Static models:DockTopMode.AlwaysTop}" />
+                                            <ComboBoxItem Content="始终显示在最下层"
+                                                          Tag="{x:Static models:DockTopMode.AlwaysBottom}" />
+                                        </ComboBox>
+                                    </Grid>
+                                    <TextBlock Text="最大化时让开：前台窗口最大化或全屏时沉到最底层，还原后回到最前；始终在最上层：只有全屏应用时才让开；始终在最下层：任何窗口都能盖住它"
+                                               Style="{StaticResource RowHint}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
                                         <TextBlock Text="废纸篓" Style="{StaticResource RowLabel}" />
                                         <CheckBox Style="{StaticResource SwitchStyle}"
                                                   HorizontalAlignment="Right"
@@ -960,27 +1051,27 @@
                         </StackPanel>
 
                         <Border Style="{StaticResource Card}">
-                            <StackPanel Margin="8,8,8,8">
-                                <RadioButton GroupName="PauseMode" Style="{StaticResource RadioRow}"
-                                             Content="不暂停（一直保持当前外观）"
-                                             IsChecked="{Binding PauseNever, Mode=TwoWay}" />
-
-                                <RadioButton GroupName="PauseMode" Style="{StaticResource RadioRow}"
-                                             Content="其他应用成为焦点时"
-                                             IsChecked="{Binding PauseWhenUnfocused, Mode=TwoWay}" />
-
-                                <RadioButton GroupName="PauseMode" Style="{StaticResource RadioRow}"
-                                             Content="无边框全屏时（游戏那种）"
-                                             IsChecked="{Binding PauseWhenBorderlessFullscreen, Mode=TwoWay}" />
-
-                                <RadioButton GroupName="PauseMode" Style="{StaticResource RadioRow}"
-                                             Content="全屏时（含浏览器 F11）"
-                                             IsChecked="{Binding PauseWhenFullscreen, Mode=TwoWay}" />
+                            <StackPanel Style="{StaticResource Row}">
+                                <Grid>
+                                    <TextBlock Text="暂停时机" Style="{StaticResource RowLabel}"
+                                               VerticalAlignment="Center" />
+                                    <ComboBox Style="{StaticResource DropdownStyle}"
+                                              SelectedValue="{Binding PauseMode, Mode=TwoWay}"
+                                              SelectedValuePath="Tag">
+                                        <ComboBoxItem Content="不暂停（一直保持当前外观）"
+                                                      Tag="{x:Static models:DockPauseMode.Never}" />
+                                        <ComboBoxItem Content="其他应用成为焦点时"
+                                                      Tag="{x:Static models:DockPauseMode.Unfocused}" />
+                                        <ComboBoxItem Content="无边框全屏时（游戏那种）"
+                                                      Tag="{x:Static models:DockPauseMode.BorderlessFullscreen}" />
+                                        <ComboBoxItem Content="全屏时（含浏览器 F11）"
+                                                      Tag="{x:Static models:DockPauseMode.Fullscreen}" />
+                                    </ComboBox>
+                                </Grid>
+                                <TextBlock Text="暂停会停掉状态轮询、回收工作集；Dock 仍然显示，鼠标移到上面会立刻恢复"
+                                           Style="{StaticResource RowHint}" Margin="0,4,0,0" TextWrapping="Wrap" />
                             </StackPanel>
                         </Border>
-
-                        <TextBlock Style="{StaticResource RowHint}" Margin="4,2,4,0"
-                                   Text="暂停会停掉状态轮询、丢掉折射缓冲，并把工作集还给系统；Dock 仍然显示，鼠标移到上面会立刻恢复。" />
 
                     </StackPanel>
                 </ScrollViewer>

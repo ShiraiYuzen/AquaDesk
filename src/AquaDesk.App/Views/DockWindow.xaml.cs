@@ -294,12 +294,37 @@ public partial class DockWindow : Window
 
     // ---------------- 按条件暂停后台工作 ----------------
 
+    private DispatcherTimer? _zTimer;
     private DispatcherTimer? _pauseTimer;
     private bool _paused;
 
-    /// <summary>1.2 秒查一次条件。太频繁没意义，这个延迟人眼几乎察觉不到。</summary>
+    /// <summary>
+    /// 两个计时器分工，频率差一个数量级：
+    /// <list type="bullet">
+    /// <item><c>_zTimer</c> —— 120ms，只管浮层 z 序。用户眼睛盯着看，必须跟手。</item>
+    /// <item><c>_pauseTimer</c> —— 1200ms，暂停策略这类重活，慢一点没人察觉。</item>
+    /// </list>
+    /// </summary>
     private void StartPauseWatcher()
     {
+        // Loaded 在窗口被摘出视觉树再挂回来时会重跑，重复建计时器就是泄漏
+        if (_zTimer is not null) return;
+
+        // z 序判断只查前台窗口的几个属性：GetForegroundWindow / IsZoomed /
+        // GetWindowRect / GetMonitorInfo，全是 user32 调用，一轮十几微秒。
+        // 120ms 跑一次 ≈ 每秒 8 次，CPU 上看不出来。
+        //
+        // 优先级必须是 Normal，不能是 Background —— 最大化那一瞬间 DWM 和 WPF
+        // 正在重绘，队列里全堆着 Normal 级的渲染工作，Background 级的 tick 会被
+        // 一直往后推，实测能拖到远超标称间隔，那才是「Dock 让开得慢」的主因。
+        _zTimer = new DispatcherTimer(DispatcherPriority.Normal)
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+
+        _zTimer.Tick += (_, _) => EvaluateZOrder();
+        _zTimer.Start();
+
         _pauseTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(1200)
@@ -308,6 +333,22 @@ public partial class DockWindow : Window
         _pauseTimer.Tick += (_, _) => EvaluatePause();
         _pauseTimer.Start();
     }
+
+    private void EvaluateZOrder()
+    {
+        var sink = _vm.Settings.TopMode switch
+        {
+            // 只在「真的全屏」时让开：最大化是普通工作状态，Dock 按用户要求留在上面
+            DockTopMode.AlwaysTop => WindowQuery.IsForegroundFullscreen(out _),
+            DockTopMode.AlwaysBottom => true,
+            _ => WindowQuery.IsForegroundCoveringScreen()
+        };
+
+        OverlayZOrder.SetSunk(sink);
+    }
+
+    /// <summary>启动台 / 文件夹窗口开着时，浮层别抢置顶（它们自己会让位）。</summary>
+    public bool IsTemporaryTopmostOpen => _launchpad is not null || _folderWindow is not null;
 
     private void EvaluatePause()
     {
@@ -373,7 +414,8 @@ public partial class DockWindow : Window
 
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
     {
-        SettingsStore.Save(_vm.Settings);
+        // 这里只负责「立刻生效」，不再顺手写盘 —— 保存交给设置页底部的「保存」按钮
+        // （关窗时会兜底保存一次，见 SettingsWindow.OnClosing）。改动还是实时作用到界面上的。
 
         if (e.PropertyName is nameof(AppSettings.CornerRadius))
         {
@@ -390,6 +432,12 @@ public partial class DockWindow : Window
         if (e.PropertyName is nameof(AppSettings.PauseMode))
         {
             EvaluatePause();
+        }
+
+        // 换了窗口层级，立刻按新策略重算一次，不用等下一个轮询周期
+        if (e.PropertyName is nameof(AppSettings.TopMode))
+        {
+            EvaluateZOrder();
         }
 
         // 窗口预览开关：开→立刻抓一轮，关→马上撤掉那一排

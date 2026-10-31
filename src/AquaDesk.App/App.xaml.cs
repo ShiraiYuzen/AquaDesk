@@ -279,9 +279,15 @@ public partial class App : Application
         _statusDock = new StatusDockWindow(settings, dock);
         _statusDock.Show();
 
+        // 三个浮层统一登记：前台窗口最大化 / 全屏时一起沉到底层，还原后一起抬回最前。
+        // 启动台、文件夹窗口开着时按住不抢置顶，它们自己有让位逻辑。
+        OverlayZOrder.Register(dock);
+        OverlayZOrder.Register(_clock);
+        OverlayZOrder.Register(_statusDock);
+        OverlayZOrder.HoldTopmost = () => dock.IsTemporaryTopmostOpen;
+
         // 焦点守卫：我们不是前台时不该握着键盘焦点（详见 FocusGuard 注释）
-        FocusGuard.Start((uint)Environment.ProcessId);
-        var focusGuard = new DispatcherTimer(DispatcherPriority.Background)
+        FocusGuard.Start((uint)Environment.ProcessId);        var focusGuard = new DispatcherTimer(DispatcherPriority.Background)
         {
             Interval = TimeSpan.FromMilliseconds(500)
         };

@@ -22,6 +22,11 @@
     <SolidColorBrush x:Key="UiTextSecondaryBrush" Color="#83838C" />
     <SolidColorBrush x:Key="UiTextTertiaryBrush" Color="#9A9AA2" />
     <SolidColorBrush x:Key="UiAccentBrush" Color="#0A84FF" />
+    <!-- 次级按钮 / 下拉框这类「浅色容器」的底色与描边，两套主题各给一份，
+         免得深色底下出现白底浅字 -->
+    <SolidColorBrush x:Key="UiFieldBgBrush" Color="#E6FFFFFF" />
+    <SolidColorBrush x:Key="UiFieldBorderBrush" Color="#C9C9D2" />
+
     <SolidColorBrush x:Key="UiDividerBrush" Color="#E4E9F0" />
     <SolidColorBrush x:Key="UiShadowBrush" Color="#000000" />
 

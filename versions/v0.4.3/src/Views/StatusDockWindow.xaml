@@ -237,7 +237,7 @@
                         <ColumnDefinition Width="27" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.3.12 挪到最前面 -->
+                    <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.4.0 挪到最前面 -->
                     <Grid x:Name="BrandIcon" Grid.Column="0"
                           Width="16" Height="9.5"
                           HorizontalAlignment="Center" VerticalAlignment="Center"

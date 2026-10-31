@@ -65,16 +65,7 @@ public static class WindowQuery
             if (hwnd == IntPtr.Zero) return false;
 
             // 桌面和任务栏本身就是铺满屏幕的，不能算「全屏应用」
-            var className = new System.Text.StringBuilder(256);
-            if (NativeMethods.GetClassNameW(hwnd, className, className.Capacity) > 0)
-            {
-                var name = className.ToString();
-
-                if (name is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd")
-                {
-                    return false;
-                }
-            }
+            if (IsShellWindow(hwnd)) return false;
 
             if (!NativeMethods.GetWindowRect(hwnd, out var rect)) return false;
 
@@ -103,6 +94,46 @@ public static class WindowQuery
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// 前台窗口是不是「占满屏幕」：最大化，或者全屏（F11 / 无边框游戏）。
+    ///
+    /// Dock 和两个胶囊在这两种情况下都该沉到最底层 —— 它们是盖在所有窗口之上的浮层，
+    /// 窗口一最大化就会压住别人的内容（浏览器底部那条工具栏、编辑器最后一行代码都被吃掉）。
+    /// </summary>
+    public static bool IsForegroundCoveringScreen()
+    {
+        try
+        {
+            var hwnd = NativeMethods.GetForegroundWindow();
+            if (hwnd == IntPtr.Zero) return false;
+            if (IsShellWindow(hwnd)) return false;
+
+            return NativeMethods.IsZoomed(hwnd) || IsForegroundFullscreen(out _);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 桌面 / 任务栏这些 Shell 窗口铺满屏幕是本职，不能当「全屏应用」看。
+    /// 缓冲区复用：这条判断挂在 120ms 的 z 序轮询上，每秒要跑八次，
+    /// 每次 new 一个 StringBuilder 纯属白给 GC 添活。
+    /// </summary>
+    [ThreadStatic]
+    private static System.Text.StringBuilder? _classNameBuffer;
+
+    private static bool IsShellWindow(IntPtr hwnd)
+    {
+        var className = _classNameBuffer ??= new System.Text.StringBuilder(256);
+        className.Clear();
+
+        if (NativeMethods.GetClassNameW(hwnd, className, className.Capacity) <= 0) return false;
+
+        return className.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
     }
 
     /// <summary>

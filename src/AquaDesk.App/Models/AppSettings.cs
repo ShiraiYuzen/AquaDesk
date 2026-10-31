@@ -49,6 +49,22 @@ public enum DockPauseMode
 }
 
 /// <summary>
+/// Dock 和两个胶囊的窗口层级（它们平时是 Topmost 浮层，会盖在别的窗口上面）。
+/// 见 <c>Services/OverlayZOrder</c>。
+/// </summary>
+public enum DockTopMode
+{
+    /// <summary>前台窗口最大化 / 全屏时自动沉到最底，还原后抬回最前（默认）。</summary>
+    SinkWhenCovered = 0,
+
+    /// <summary>始终显示在最上层，只有全屏应用（F11 / 无边框游戏）时才让开。</summary>
+    AlwaysTop = 1,
+
+    /// <summary>始终显示在最下层：任何窗口都能盖住它。</summary>
+    AlwaysBottom = 2
+}
+
+/// <summary>
 /// 用户可调的全部参数。直接双向绑定到设置页，改完立刻生效，不需要重启。
 /// 所有 setter 都做区间收敛，避免手改 JSON 改出负数把界面搞崩。
 /// </summary>
@@ -73,6 +89,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _showBatteryPercent;
     private bool _showComputerIcon = true;
     private bool _showWindowPreviews = true;
+    private DockTopMode _topMode = DockTopMode.SinkWhenCovered;
     private DockEdge _edge = DockEdge.Bottom;
     private double _uiScale = DefaultUiScale();
     private DockPauseMode _pauseMode = DockPauseMode.Never;
@@ -299,11 +316,6 @@ public sealed class AppSettings : INotifyPropertyChanged
             OnPropertyChanged(nameof(SeparatorWidth));
             OnPropertyChanged(nameof(SeparatorHeight));
             RaiseDerived();
-
-            OnPropertyChanged(nameof(EdgeBottom));
-            OnPropertyChanged(nameof(EdgeTop));
-            OnPropertyChanged(nameof(EdgeLeft));
-            OnPropertyChanged(nameof(EdgeRight));
         }
     }
 
@@ -377,36 +389,6 @@ public sealed class AppSettings : INotifyPropertyChanged
         DockEdge.Right => new Thickness(0, 0, BottomMargin, 0),
         _ => new Thickness(0, 0, 0, BottomMargin)
     };
-
-    // 给 RadioButton 的 TwoWay 绑定用
-
-    [JsonIgnore]
-    public bool EdgeBottom
-    {
-        get => _edge == DockEdge.Bottom;
-        set { if (value) Edge = DockEdge.Bottom; }
-    }
-
-    [JsonIgnore]
-    public bool EdgeTop
-    {
-        get => _edge == DockEdge.Top;
-        set { if (value) Edge = DockEdge.Top; }
-    }
-
-    [JsonIgnore]
-    public bool EdgeLeft
-    {
-        get => _edge == DockEdge.Left;
-        set { if (value) Edge = DockEdge.Left; }
-    }
-
-    [JsonIgnore]
-    public bool EdgeRight
-    {
-        get => _edge == DockEdge.Right;
-        set { if (value) Edge = DockEdge.Right; }
-    }
 
     // ---------------- 放大镜 ----------------
 
@@ -545,46 +527,7 @@ public sealed class AppSettings : INotifyPropertyChanged
     public DockPauseMode PauseMode
     {
         get => _pauseMode;
-        set
-        {
-            if (!Set(ref _pauseMode, value)) return;
-
-            // 四个单选按钮都绑在下面这几个只读布尔上，得一起通知
-            OnPropertyChanged(nameof(PauseNever));
-            OnPropertyChanged(nameof(PauseWhenUnfocused));
-            OnPropertyChanged(nameof(PauseWhenBorderlessFullscreen));
-            OnPropertyChanged(nameof(PauseWhenFullscreen));
-        }
-    }
-
-    // 给 RadioButton 的 TwoWay 绑定用：只处理「被选中」，取消选中交给 GroupName
-
-    [JsonIgnore]
-    public bool PauseNever
-    {
-        get => _pauseMode == DockPauseMode.Never;
-        set { if (value) PauseMode = DockPauseMode.Never; }
-    }
-
-    [JsonIgnore]
-    public bool PauseWhenUnfocused
-    {
-        get => _pauseMode == DockPauseMode.Unfocused;
-        set { if (value) PauseMode = DockPauseMode.Unfocused; }
-    }
-
-    [JsonIgnore]
-    public bool PauseWhenBorderlessFullscreen
-    {
-        get => _pauseMode == DockPauseMode.BorderlessFullscreen;
-        set { if (value) PauseMode = DockPauseMode.BorderlessFullscreen; }
-    }
-
-    [JsonIgnore]
-    public bool PauseWhenFullscreen
-    {
-        get => _pauseMode == DockPauseMode.Fullscreen;
-        set { if (value) PauseMode = DockPauseMode.Fullscreen; }
+        set => Set(ref _pauseMode, value);
     }
 
     // ---------------- Dock 图标显示 ----------------
@@ -652,6 +595,15 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _showWindowPreviews;
         set => Set(ref _showWindowPreviews, value);
+    }
+
+    /// <summary>
+    /// Dock 和两个胶囊的窗口层级。它们在别的窗口之上还是之下，由这个值决定。
+    /// </summary>
+    public DockTopMode TopMode
+    {
+        get => _topMode;
+        set => Set(ref _topMode, value);
     }
 
     private static double Clamp(double v, double min, double max) =>

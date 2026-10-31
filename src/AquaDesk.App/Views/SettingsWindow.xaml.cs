@@ -11,6 +11,11 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettings _settings;
 
+    /// <summary>打开之后改过东西没有。没改过就不出现「保存」按钮。</summary>
+    private bool _dirty;
+
+    private System.Windows.Threading.DispatcherTimer? _savedHintTimer;
+
     public SettingsWindow(AppSettings settings)
     {
         _settings = settings;
@@ -18,6 +23,10 @@ public partial class SettingsWindow : Window
         DataContext = settings;
 
         FillAbout();
+
+        // 任何一项改动都把「保存」按钮亮出来（改动本身是实时生效的，这里只管写盘）
+        _settings.PropertyChanged += OnAnySettingChanged;
+        Closing += OnWindowClosing;
 
         // Esc 关窗：系统标题栏也有 ×，但调参数时手一般还在键盘上
         PreviewKeyDown += (_, e) =>
@@ -103,6 +112,7 @@ public partial class SettingsWindow : Window
                 _settings.ShowComputerIcon = defaults.ShowComputerIcon;
                 _settings.ShowTrashIcon = defaults.ShowTrashIcon;
                 _settings.ShowWindowPreviews = defaults.ShowWindowPreviews;
+                _settings.TopMode = defaults.TopMode;
                 _settings.ShowBackgroundAppsButton = defaults.ShowBackgroundAppsButton;
                 _settings.ShowBatteryPercent = defaults.ShowBatteryPercent;
                 break;
@@ -150,6 +160,7 @@ public partial class SettingsWindow : Window
         _settings.ShowComputerIcon = defaults.ShowComputerIcon;
         _settings.ShowTrashIcon = defaults.ShowTrashIcon;
         _settings.ShowWindowPreviews = defaults.ShowWindowPreviews;
+        _settings.TopMode = defaults.TopMode;
         _settings.ShowBackgroundAppsButton = defaults.ShowBackgroundAppsButton;
         _settings.ShowBatteryPercent = defaults.ShowBatteryPercent;
 
@@ -180,4 +191,61 @@ public partial class SettingsWindow : Window
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
+
+    // ---------------- 保存 ----------------
+
+    /// <summary>
+    /// 设置项一改就叫一声。改动本身是实时生效的（Dock 立刻变），
+    /// 这里只负责把「保存」按钮亮出来 —— 写盘交给用户点，或者关窗时兜底。
+    /// </summary>
+    private void OnAnySettingChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (_dirty) return;
+
+        _dirty = true;
+        FooterPart("SavedHint")?.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        FooterPart("SaveButton")?.SetValue(UIElement.VisibilityProperty, Visibility.Visible);
+    }
+
+    private void OnSave(object sender, RoutedEventArgs e)
+    {
+        SettingsStore.Save(_settings);
+
+        _dirty = false;
+        FooterPart("SaveButton")?.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+
+        // 「已保存」显示一小会儿就自己收起来，别留个常驻标签占位
+        FooterPart("SavedHint")?.SetValue(UIElement.VisibilityProperty, Visibility.Visible);
+
+        _savedHintTimer?.Stop();
+        _savedHintTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(1.8)
+        };
+
+        _savedHintTimer.Tick += (_, _) =>
+        {
+            _savedHintTimer?.Stop();
+            FooterPart("SavedHint")?.SetValue(UIElement.VisibilityProperty, Visibility.Collapsed);
+        };
+
+        _savedHintTimer.Start();
+    }
+
+    /// <summary>
+    /// 底部那条按钮栏是 TabControl 模板的一部分（所有分页共用一条），
+    /// 所以「保存」和「已保存」拿不到同名字段，只能按名字从模板里取。
+    /// </summary>
+    private FrameworkElement? FooterPart(string name) =>
+        RootTabs.Template?.FindName(name, RootTabs) as FrameworkElement;
+
+    /// <summary>关窗（×／Esc／完成）时兜底保存一次：改完直接点「完成」也不会丢。</summary>
+    private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        _settings.PropertyChanged -= OnAnySettingChanged;
+        _savedHintTimer?.Stop();
+
+        if (_dirty) SettingsStore.Save(_settings);
+        _dirty = false;
+    }
 }
