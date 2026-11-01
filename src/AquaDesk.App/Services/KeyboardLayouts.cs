@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Media;
 using AquaDesk;
@@ -7,32 +8,51 @@ using Microsoft.Win32;
 
 namespace AquaDesk.Services;
 
-/// <summary>一个已安装的键盘布局，对应下拉框里的一行。</summary>
+/// <summary>下拉框里的一行：一个输入法，或者一个纯键盘布局。</summary>
 public sealed record KeyboardLayout(
     string LayoutId,
     ushort LangId,
+    string Clsid,
+    string ProfileGuid,
     string Title,
     string Subtitle,
     ImageSource? Icon,
     string Badge,
-    bool IsCurrent);
+    bool IsCurrent)
+{
+    /// <summary>TSF 注册的输入法（搜狗 / 讯飞 / 微信 / 微软拼音…）。false 表示纯键盘布局。</summary>
+    public bool IsInputMethod => Clsid.Length > 0 && ProfileGuid.Length > 0;
+}
 
 /// <summary>
-/// 列出 / 切换已安装的键盘布局（等价于 Windows 那个「键盘布局」弹出层）。
+/// 列出 / 切换输入法与键盘布局（等价于 Windows 那个「键盘布局」弹出层，但列得更全）。
 ///
-/// 列表来自 <c>HKCU\Keyboard Layout\Preload</c>，每个值是 8 位 KLID，例如
-/// <c>00000804</c>（简体中文）、<c>00000409</c>（美式键盘）。
+/// 两套数据源，缺一不可：
+/// 1. <c>HKCU\Keyboard Layout\Preload</c> —— 装了哪些**语言**，比如 0409 英语、0804 简体中文。
+/// 2. <c>HKLM\SOFTWARE\Microsoft\CTF\TIP\{CLSID}\LanguageProfile\0x{langid}\{GUID}</c>
+///    —— 这个语言下装了哪些**输入法**，每家一个 GUID，还各自带 IconFile/IconIndex。
 ///
-/// 每行显示两段文字，和系统一致：
-/// - 标题 = 语言的本地化名字（`GetLocaleInfo` + `LOCALE_SLOCALIZEDDISPLAYNAME`）
-/// - 副标题 = 输入法名字（TSF 注册的 Description，如「搜狗拼音输入法」）；
-///   纯键盘布局没有输入法，就取 `Layout Display Name`（间接字符串，要 `SHLoadIndirectString` 还原）
+/// 老实现只取「第一个带图标的 profile」，所以中文永远显示搜狗，讯飞 / 微信 /
+/// 微软拼音全被吞掉了。现在按语言把 profile 全部展开，一个输入法一行。
 ///
-/// 切换走 `LoadKeyboardLayout` + `WM_INPUTLANGCHANGEREQUEST`，和原来那个中英切换是同一套，
-/// 只是目标从写死的两个变成用户点的那一个。
+/// 切换分两层：
+/// - 语言不同 → <c>LoadKeyboardLayout</c> + <c>WM_INPUTLANGCHANGEREQUEST</c>（和各输入法共用 HKL，够用）
+/// - 同一语言下换输入法 → 只能走 TSF 的 <c>ActivateLanguageProfile</c>。
+///   这一层是必须的：中文下搜狗 / 讯飞 / 微软拼音的 HKL **全都是 00000804**，
+///   光发 WM_INPUTLANGCHANGEREQUEST 切不动（实测 HKL = 0x08040804）。
 /// </summary>
 public static class KeyboardLayouts
 {
+    /// <summary>面板打开前记录的用户真实输入目标窗口。见 <see cref="CaptureSwitchTarget"/>。</summary>
+    private static IntPtr _switchTarget;
+
+    /// <summary>
+    /// 用户最后一次在面板里点过的输入法。TSF 没有可用的「读当前 profile」接口
+    /// （GetActiveLanguageProfile 在本机直接 AV），所以「哪个输入法在生效」只能靠记。
+    /// 语言层面仍然是实时读 GetKeyboardLayout，不会错。
+    /// </summary>
+    private static string _lastProfileKey = string.Empty;
+
     public static List<KeyboardLayout> GetAll()
     {
         var result = new List<KeyboardLayout>();
@@ -41,48 +61,80 @@ public static class KeyboardLayouts
         {
             var currentLangId = GetCurrentLangId();
 
-            using var preload = Registry.CurrentUser.OpenSubKey(@"Keyboard Layout\Preload");
-            if (preload is null) return result;
-
-            var names = preload.GetValueNames()
-                .OrderBy(name => int.TryParse(name, out var index) ? index : int.MaxValue)
-                .ToList();
-
-            foreach (var name in names)
+            foreach (var (layoutId, langId) in PreloadLanguages())
             {
-                if (preload.GetValue(name) is not string raw) continue;
+                var profiles = InputMethodIcon.FindProfiles(langId);
 
-                var layoutId = raw.Trim();
-                if (layoutId.Length != 8) continue;
-
-                if (!ushort.TryParse(layoutId[^4..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var langId))
+                if (profiles.Count == 0)
                 {
+                    // 纯键盘布局（英语-美式键盘这类）：没有 TSF profile，只有 Layout Display Name
+                    const string title = "";   // 下面统一算语言名
+                    result.Add(new KeyboardLayout(
+                        layoutId,
+                        langId,
+                        string.Empty,
+                        string.Empty,
+                        LanguageName(langId),
+                        KeyboardName(layoutId),
+                        InputMethodIcon.Generated(langId, LanguageName(langId), BadgeFor(langId)),
+                        BadgeFor(langId),
+                        langId == currentLangId && _lastProfileKey.Length == 0));
+
+                    _ = title;
                     continue;
                 }
 
-                var profile = InputMethodIcon.FindProfile(langId);
+                // 同一语言下有多个输入法时，靠记忆里的那条打勾；没有记忆就先认第一个
+                var activeKey = _lastProfileKey;
+                var fallback = profiles[0].Key;
 
-                var title = LanguageName(langId);
-                var subtitle = profile is not null && profile.Description.Length > 0
-                    ? profile.Description
-                    : KeyboardName(layoutId);
+                foreach (var profile in profiles)
+                {
+                    var key = profile.Key;
+                    var isCurrent = langId == currentLangId
+                                    && string.Equals(key, activeKey.Length > 0 ? activeKey : fallback,
+                                        StringComparison.OrdinalIgnoreCase);
 
-                result.Add(new KeyboardLayout(
-                    layoutId,
-                    langId,
-                    title,
-                    subtitle,
-                    InputMethodIcon.GetIcon(langId, monochrome: false),
-                    BadgeFor(langId),
-                    langId == currentLangId));
+                    result.Add(new KeyboardLayout(
+                        layoutId,
+                        langId,
+                        profile.Clsid,
+                        profile.Guid,
+                        LanguageName(langId),
+                        profile.Description.Length > 0 ? profile.Description : KeyboardName(layoutId),
+                        InputMethodIcon.GetIcon(profile, monochrome: false)
+                            ?? InputMethodIcon.Generated(langId, profile.Description, BadgeFor(langId)),
+                        BadgeFor(langId),
+                        isCurrent));
+                }
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 枚举键盘布局失败：{ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 枚举输入法失败：{ex.Message}");
         }
 
         return result;
+    }
+
+    /// <summary>当前语言下应该显示在菜单栏上的输入法（靠记忆，取不到就退回第一个）。</summary>
+    public static TsfProfile? CurrentProfileHint(ushort langId)
+    {
+        var profiles = InputMethodIcon.FindProfiles(langId);
+        if (profiles.Count == 0) return null;
+
+        if (_lastProfileKey.Length > 0)
+        {
+            foreach (var profile in profiles)
+            {
+                if (string.Equals(profile.Key, _lastProfileKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    return profile;
+                }
+            }
+        }
+
+        return profiles[0];
     }
 
     /// <summary>
@@ -95,9 +147,6 @@ public static class KeyboardLayouts
     /// WM_INPUTLANGCHANGEREQUEST 按微软文档是发给「焦点窗口」的，不是前台窗口——
     /// 所以这里记的是焦点窗口，拿不到才退回前台窗口。
     /// </summary>
-    private static IntPtr _switchTarget;
-
-    /// <summary>在打开面板之前调用：记住用户此刻真正的焦点窗口。</summary>
     public static void CaptureSwitchTarget()
     {
         var hwnd = NativeMethods.GetForegroundWindow();
@@ -108,11 +157,31 @@ public static class KeyboardLayouts
         _switchTarget = focus != IntPtr.Zero ? focus : hwnd;
     }
 
-    /// <summary>切到指定布局。窗口要接得住 WM_INPUTLANGCHANGEREQUEST，所以发给焦点窗口。</summary>
+    /// <summary>切到指定输入法 / 布局。</summary>
     public static bool Activate(KeyboardLayout layout)
     {
         try
         {
+            // 第一层：同一语言下换输入法，必须走 TSF（HKL 是同一个，发消息切不动）
+            var tsfLabel = "-";
+            var profileOk = true;
+
+            if (layout.IsInputMethod)
+            {
+                profileOk = ActivateProfile(layout.Clsid, layout.LangId, layout.ProfileGuid);
+                tsfLabel = profileOk ? "ok" : "fail";
+
+                if (profileOk)
+                {
+                    _lastProfileKey = layout.Clsid + "/" + layout.ProfileGuid;
+                }
+            }
+            else
+            {
+                _lastProfileKey = string.Empty;
+            }
+
+            // 第二层：语言不同时还得把 HKL 换过去（同语言时这步等于原地不动）
             var hkl = NativeMethods.LoadKeyboardLayout(layout.LayoutId, NativeMethods.KLF_ACTIVATE);
             if (hkl == IntPtr.Zero)
             {
@@ -120,9 +189,9 @@ public static class KeyboardLayouts
                 return false;
             }
 
-            // 优先用打开面板前记下的焦点窗口；没有就退回现场的前台窗口
             var hwnd = _switchTarget != IntPtr.Zero ? _switchTarget : NativeMethods.GetForegroundWindow();
-            App.Log($"切换键盘布局：{layout.LayoutId} hkl=0x{hkl:X} 目标=0x{hwnd:X}(记录0x{_switchTarget:X})", null);
+            App.Log($"切换输入法：{layout.Subtitle}（{layout.LayoutId}，TSF={tsfLabel}）" +
+                    $" hkl=0x{hkl:X} 目标=0x{hwnd:X}", null);
 
             if (hwnd == IntPtr.Zero) return false;
 
@@ -133,9 +202,111 @@ public static class KeyboardLayouts
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 切换键盘布局失败：{ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 切换输入法失败：{ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// 用 TSF 激活某个输入法。
+    ///
+    /// 这里**没有**用 ComImport 接口：同一个 CLSID 在控制台程序里 cast 成功，
+    /// 在 WPF 进程里却抛 InvalidCastException(E_NOINTERFACE)，大概是 WPF 的 STA/OLE
+    /// 初始化让 CoCreateInstance 走了代理路径。改成手动取 vtable 直接调函数指针，
+    /// 绕开 CLR 的接口查询，两种进程里行为一致。
+    ///
+    /// 槽位：IUnknown 占 0-2，Register 3，Unregister 4，AddLanguageProfile 5，
+    /// RemoveLanguageProfile 6，EnumInputProcessorInfo 7，GetDefaultLanguageProfile 8，
+    /// SetDefaultLanguageProfile 9，ActivateLanguageProfile 10。
+    ///
+    /// 另外记一笔：同一个接口的 GetActiveLanguageProfile（槽 11）在 Win11 上直接
+    /// AccessViolation 崩进程，所以「读当前是哪个 profile」这件事不做，改用记忆。
+    /// </summary>
+    private static bool ActivateProfile(string clsid, ushort langId, string profileGuid) =>
+        ActivateProfileCore(clsid, langId, profileGuid);
+
+    private static bool ActivateProfileCore(string clsid, ushort langId, string profileGuid)
+    {
+        try
+        {
+            // 用 msctf.dll 导出的工厂函数，不走 CoCreateInstance：
+            // 在 WPF 进程里 CoCreateInstance(CLSID_TF_InputProcessorProfiles) 拿到的对象
+            // 对 IID_ITfInputProcessorProfiles 一律回 E_NOINTERFACE（0x80004002），
+            // 而同样的代码在控制台进程里成功 —— 大概是 WPF 已经初始化过 TSF，
+            // 类工厂那边走了另一条路。TF_Create* 直接在进程内 new 一个，没有这层问题。
+            var hr = TF_CreateInputProcessorProfiles(out var profilesPtr);
+            if (hr < 0 || profilesPtr == IntPtr.Zero)
+            {
+                App.Log($"TSF 激活输入法失败：TF_CreateInputProcessorProfiles 0x{hr:X8}", null);
+                return false;
+            }
+
+            try
+            {
+                var clsidValue = new Guid(clsid);
+                var guidValue = new Guid(profileGuid);
+
+                var vtable = Marshal.ReadIntPtr(profilesPtr);
+                var entry = Marshal.ReadIntPtr(vtable, 10 * IntPtr.Size);
+
+                var activate = Marshal.GetDelegateForFunctionPointer<ActivateLanguageProfileFn>(entry);
+
+                hr = activate(profilesPtr, ref clsidValue, langId, ref guidValue);
+
+                if (hr < 0) App.Log($"TSF 激活输入法失败：ActivateLanguageProfile 0x{hr:X8}", null);
+
+                return hr >= 0;
+            }
+            finally
+            {
+                Marshal.Release(profilesPtr);
+            }
+        }
+        catch (Exception ex)
+        {
+            App.Log($"TSF 激活输入法异常：{ex.GetType().Name} 0x{ex.HResult:X8}", null);
+            return false;
+        }
+    }
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    private delegate int ActivateLanguageProfileFn(
+        IntPtr self, ref Guid rclsid, ushort langid, ref Guid guidProfile);
+
+    [DllImport("msctf.dll")]
+    private static extern int TF_CreateInputProcessorProfiles(out IntPtr ppipr);
+
+    /// <summary>Preload 里登记的语言：8 位 KLID + 语言 ID。</summary>
+    private static List<(string LayoutId, ushort LangId)> PreloadLanguages()
+    {
+        var list = new List<(string, ushort)>();
+
+        using var preload = Registry.CurrentUser.OpenSubKey(@"Keyboard Layout\Preload");
+        if (preload is null) return list;
+
+        var names = preload.GetValueNames()
+            .OrderBy(name => int.TryParse(name, out var index) ? index : int.MaxValue)
+            .ToList();
+
+        foreach (var name in names)
+        {
+            if (preload.GetValue(name) is not string raw) continue;
+
+            var layoutId = raw.Trim();
+            if (layoutId.Length != 8) continue;
+
+            if (!ushort.TryParse(layoutId[^4..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var langId))
+            {
+                continue;
+            }
+
+            // 同一语言可能被登记多次（少见），去重免得面板里出现两遍
+            if (list.Any(item => item.Item2 == langId)) continue;
+
+            list.Add((layoutId, langId));
+        }
+
+        return list;
     }
 
     private static ushort GetCurrentLangId()
@@ -202,7 +373,7 @@ public static class KeyboardLayouts
         {
             "EN" => "ENG",
             "ZH" => "中",
-            _ => code
+            _ => code,
         };
     }
 }

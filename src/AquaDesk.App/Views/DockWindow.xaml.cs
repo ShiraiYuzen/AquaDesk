@@ -498,20 +498,31 @@ public partial class DockWindow : Window
     /// 窗口比玻璃条宽两倍 ExpandReserve —— 放大时玻璃条要往外长，
     /// 窗口提前留好空位，就不用每帧改窗口宽度（那会抖）。
     /// </summary>
+    /// <summary>Dock 两端各留的安全边距（DIP）：贴死屏边时玻璃阴影会被切掉。</summary>
+    private const double EdgeSafetyMargin = 24;
+
     private void UpdateWindowWidth()
     {
         var s = _vm.Settings;
 
         // 直接数 Items：图标宽的算一个磁贴，分隔线窄一些。
         // 这样加了窗口预览区、或者关掉某个系统图标，都不用再改公式。
-        var tiles = 0;
-        var separators = 0;
+        var (tiles, separators) = CountTiles(out var previewTiles);
 
-        foreach (var item in _vm.Items)
+        // 先定「能放几格预览」。它一变预览项数量就变，宽度得按新数量重算，
+        // 所以放在算宽度之前，改完再数一遍。
+        var slots = ComputePreviewSlots(s, tiles - previewTiles, separators);
+
+        if (slots != _vm.PreviewSlotLimit)
         {
-            if (item.IsSeparator) separators++;
-            else tiles++;
+            _vm.PreviewSlotLimit = slots;
+            (tiles, separators) = CountTiles(out _);
         }
+
+        // 图标一多不能让窗口无限长下去 —— 窗口一旦比屏幕还宽，居中摆放会把两端
+        // 一起推出屏幕外，「后来打开的程序看不见」就是这么来的。
+        // 策略：整排按比例缩小图标，保持单排、居中、全部可见。
+        ApplyAutoShrink(s, tiles, separators);
 
         var content = s.TileSlotWidth * tiles + (13 + s.IconGap) * separators;
 
@@ -531,6 +542,99 @@ public partial class DockWindow : Window
             Width = length;
             Height = thickness;
         }
+    }
+
+    /// <summary>数一遍 Items：总磁贴数 / 分隔线数，顺便把窗口预览类的数量带出来。</summary>
+    private (int Tiles, int Separators) CountTiles(out int previewTiles)
+    {
+        var tiles = 0;
+        var separators = 0;
+        previewTiles = 0;
+
+        foreach (var item in _vm.Items)
+        {
+            if (item.IsSeparator)
+            {
+                separators++;
+                continue;
+            }
+
+            tiles++;
+
+            if (item.IsWindowPreview || item.IsWindowList) previewTiles++;
+        }
+
+        return (tiles, separators);
+    }
+
+    /// <summary>
+    /// 窗口预览区最多能放几格。用 WorkArea（不是整块屏幕）减去「非预览项」的固定占用，
+    /// 剩下的跨度能排下几张就是几张。
+    ///
+    /// 这里故意按**未缩放**的图标尺寸算（IconSize * UiScale + IconGap），不参与
+    /// ApplyAutoShrink 的联动：否则「格数变大 → 挤得缩图标 → 图标小了又能放更多格」
+    /// 会来回抖。保守算小一点，换来布局稳定。
+    /// </summary>
+    private int ComputePreviewSlots(AppSettings s, int nonPreviewTiles, int separators)
+    {
+        var baseSlot = s.IconSize * s.UiScale + s.IconGap;
+        if (baseSlot <= 0) return WindowPreviewService.DefaultPreviewSlots;
+
+        var area = SystemParameters.WorkArea;
+        var span = s.IsVertical ? area.Height : area.Width;
+        var usable = span - 2 * EdgeSafetyMargin;
+        if (usable <= 0) return WindowPreviewService.DefaultPreviewSlots;
+
+        var used = baseSlot * nonPreviewTiles
+                 + (13 + s.IconGap) * separators
+                 + s.SidePadding * 2 + s.ExpandReserve * 2;
+
+        var room = usable - used;
+
+        // 一格都不剩就退到最小值：宁可整排缩小，也别把预览区整个藏掉
+        var slots = (int)Math.Floor(room / baseSlot);
+
+        return Math.Clamp(slots, 3, WindowPreviewService.MaxPreviewSlots);
+    }
+
+    /// <summary>
+    /// 判断整排能不能装进屏幕可用跨度，装不下就把图标等比缩小。
+    ///
+    /// 展开后的长度对「图标边长 s」是线性的：
+    ///   length = s * (tiles + 3.24) + [gap*tiles + (13+gap)*separators + 2*gap]
+    /// 其中 0.24 是两侧 padding 的 s 部分、3 是两侧放大预留（各 1.5s）。
+    /// 系数是常数，所以 s 的上限能直接解出来，不需要迭代试算。
+    /// </summary>
+    private void ApplyAutoShrink(AppSettings s, int tiles, int separators)
+    {
+        var baseIcon = s.IconSize * s.UiScale;
+        if (baseIcon <= 0) return;
+
+        // 用 WorkArea 而不是屏幕尺寸：任务栏开着时 Dock 贴在任务栏上沿，
+        // 真正能用的跨度比整块屏幕小。
+        var area = SystemParameters.WorkArea;
+        var span = s.IsVertical ? area.Height : area.Width;
+        var usable = span - 2 * EdgeSafetyMargin;
+        if (usable <= 0) return;
+
+        var gap = s.IconGap;
+        var fixedPart = gap * tiles + (13 + gap) * separators + 2 * gap;
+        var unitPart = baseIcon * (tiles + 3.24);
+
+        var shrink = 1.0;
+        if (unitPart + fixedPart > usable)
+        {
+            shrink = (usable - fixedPart) / unitPart;
+
+            // 缩到底还是装不下：说明图标多到离谱（或者窗口高度被人为压得很小），
+            // 这时候承认溢出，但要留条日志，免得以后又当成「看不见」的玄学问题查。
+            if (shrink < 0.35)
+            {
+                App.Log($"Dock：图标过多，缩到最小仍超出屏幕（需要 {unitPart * 0.35 + fixedPart:F0}，可用 {usable:F0}），已允许溢出", null);
+            }
+        }
+
+        s.AutoShrinkScale = shrink;
     }
 
     /// <summary>
@@ -1646,6 +1750,11 @@ public partial class DockWindow : Window
                 else WindowPreviewService.Toggle(item.WindowHandle);
                 break;
 
+            case DockItemKind.WindowList:
+                // 预览区放不下的那些应用，全从这里进
+                ShowAllWindowsMenu(sender as FrameworkElement);
+                break;
+
             case DockItemKind.Trash:
                 // 和其他应用一样：没开就打开，开着在前台就最小化，在后台就提到前台
                 if (!WindowQuery.ToggleTrash()) OpenTrash();
@@ -1705,6 +1814,81 @@ public partial class DockWindow : Window
     }
 
     // ---------------- 菜单 ----------------
+
+    /// <summary>
+    /// 「全部窗口」：把预览区放不下的应用都列出来。
+    /// 应用 → 窗口两级；只有一个窗口的应用直接平铺成一条，不套没有意义的二级菜单。
+    /// </summary>
+    private void ShowAllWindowsMenu(FrameworkElement? target)
+    {
+        var groups = _vm.WindowGroups;
+        if (target is null || groups.Count == 0) return;
+
+        var menu = new ContextMenu { PlacementTarget = target };
+        menu.Opened += OnMenuOpened;
+
+        foreach (var group in groups)
+        {
+            if (group.Windows.Count == 1)
+            {
+                var only = group.Windows[0];
+                var handle = only.Handle;
+
+                var entry = new MenuItem { Header = DescribeSingle(group.AppName, only.Title) };
+                entry.Click += (_, _) => WindowPreviewService.Activate(handle);
+                menu.Items.Add(entry);
+                continue;
+            }
+
+            // 多窗口：挂二级菜单，展开才有每条窗口
+            var parent = new MenuItem { Header = $"{group.AppName}（{group.Windows.Count} 个窗口）" };
+
+            foreach (var window in group.Windows)
+            {
+                var handle = window.Handle;
+                var child = new MenuItem
+                {
+                    Header = string.IsNullOrWhiteSpace(window.Title) ? "（无标题窗口）" : window.Title
+                };
+                child.Click += (_, _) => WindowPreviewService.Activate(handle);
+                parent.Items.Add(child);
+            }
+
+            menu.Items.Add(parent);
+        }
+
+        menu.IsOpen = true;
+    }
+
+    /// <summary>单窗口应用在菜单里长这样：「应用名 · 标题」，标题没信息量时只留应用名。</summary>
+    private static string DescribeSingle(string appName, string title)
+    {
+        if (string.IsNullOrWhiteSpace(title)
+            || string.Equals(title, appName, StringComparison.OrdinalIgnoreCase))
+        {
+            return appName;
+        }
+
+        var trimmed = title.Length > 40 ? title[..40] + "…" : title;
+        return $"{appName} · {trimmed}";
+    }
+
+
+    /// <summary>
+    /// 打开设置页，但**不切换**：已经有窗口就置前，没有就新建。
+    /// 给 --settings 和更新后的引导用 —— 走 OnOpenSettings 的话，
+    /// 万一同一次启动里被调了两遍，第二遍会把刚开出来的窗口又收起来。
+    /// </summary>
+    public void OpenSettingsOnce()
+    {
+        if (_settingsWindow is { IsLoaded: true } existing)
+        {
+            BringToFront(existing);
+            return;
+        }
+
+        OnOpenSettings(this, new RoutedEventArgs());
+    }
 
     private void OnOpenSettings(object sender, RoutedEventArgs e)
     {

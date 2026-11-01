@@ -341,6 +341,71 @@ public partial class App : Application
         OverlayZOrder.Register(_statusDock);
         OverlayZOrder.HoldTopmost = () => dock.IsTemporaryTopmostOpen;
 
+        // --settings：启动后直接把设置页打开。
+        // 给「更新完引导用户看设置」和命令行/快捷方式留个入口，省得每次都去点图标。
+        if (Environment.GetCommandLineArgs()
+            .Any(a => string.Equals(a, "--settings", StringComparison.OrdinalIgnoreCase)))
+        {
+            Dispatcher.BeginInvoke(new Action(() => dock.OpenSettingsOnce()),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+
+        // 静默检查更新：等启动这股忙劲过去再查，查到什么都只记在
+        // UpdateService.PendingUpdate 里，不弹窗、不打扰。设置页打开时自己会读这个值。
+        UpdateService.LoadState();
+
+        var updateProbe = new DispatcherTimer { Interval = TimeSpan.FromSeconds(12) };
+        updateProbe.Tick += (_, _) =>
+        {
+            updateProbe.Stop();
+            UpdateService.CheckQuietly();
+        };
+        updateProbe.Start();
+
+        // --update-demo：用假数据弹一次「有更新」对话框，纯粹为了调版式。
+        // 线上发版时本地版本往往已经高于 GitHub 上那个，正常流程走不到这个分支。
+        if (Environment.GetCommandLineArgs()
+            .Any(a => string.Equals(a, "--update-demo", StringComparison.OrdinalIgnoreCase)))
+        {
+            Log("--update-demo：进入演示分支", null);
+            var demo = new UpdateCheckResult(
+                UpdateStatus.Available,
+                new UpdateInfo(
+                    "0.7.0",
+                    "AquaDesk 0.7.0",
+                    """
+                    ### 新增
+                    - 设置 → 关于里加了「检查更新」，支持 **一键下载安装**（下载 → 验签 → 替换重启）
+                    - 多源回退：`GitHub API` → 镜像，详情见 [Releases](https://github.com/ShiraiYuzen/AquaDesk/releases)
+
+                    ### 修复
+                    - 同一语言下换输入法切不动（搜狗 / 讯飞 / 微软拼音的 HKL 是同一个）
+
+                    ```text
+                    AquaDesk 0.7.0
+                    下载后校验 SHA256 + 指纹
+                    ```
+                    """,
+                    "https://github.com/ShiraiYuzen/AquaDesk/releases",
+                    null,
+                    null,
+                    0),
+                string.Empty);
+
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    new Views.UpdateDialog(demo).ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    Log("--update-demo：ShowDialog 抛异常", ex);
+                }
+            }),
+                System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+        }
+
         // 焦点守卫：我们不是前台时不该握着键盘焦点（详见 FocusGuard 注释）
         FocusGuard.Start((uint)Environment.ProcessId);        var focusGuard = new DispatcherTimer(DispatcherPriority.Background)
         {

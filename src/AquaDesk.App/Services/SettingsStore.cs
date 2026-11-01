@@ -50,7 +50,7 @@ public static class SettingsStore
             // 表现就是「经典选了没用」。
             if (settings.SettingsVersion < 1)
             {
-                settings.Style = Models.DockStyle.Liquid;
+                settings.Style = Models.DockStyle.LiquidClear;
                 settings.SettingsVersion = 1;
                 Save(settings);
             }

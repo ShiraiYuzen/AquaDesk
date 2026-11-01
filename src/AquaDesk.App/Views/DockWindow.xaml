@@ -21,20 +21,22 @@
         <ControlTemplate x:Key="IconTileTemplate" TargetType="ContentControl">
             <Viewbox Stretch="Uniform">
                 <Grid Width="100" Height="100">
-                    <Border CornerRadius="23.5">
+                    <!-- 液态玻璃底板：上亮下透 + 1.2px 白描边，模拟玻璃厚度 -->
+                    <Border CornerRadius="23.5" BorderBrush="#5CFFFFFF" BorderThickness="1.2">
                         <Border.Background>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                <GradientStop Color="#FBFCFD" Offset="0" />
-                                <GradientStop Color="#CFD4DB" Offset="1" />
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                                <GradientStop Color="#33FFFFFF" Offset="0" />
+                                <GradientStop Color="#17FFFFFF" Offset="0.55" />
+                                <GradientStop Color="#0DFFFFFF" Offset="1" />
                             </LinearGradientBrush>
                         </Border.Background>
                     </Border>
 
                     <Border CornerRadius="23.5">
                         <Border.Background>
-                            <RadialGradientBrush GradientOrigin="0.3,0.18" Center="0.3,0.18"
-                                                 RadiusX="0.9" RadiusY="0.9">
-                                <GradientStop Color="#4DFFFFFF" Offset="0" />
+                            <RadialGradientBrush GradientOrigin="0.26,0.16" Center="0.26,0.16"
+                                                 RadiusX="0.85" RadiusY="0.85">
+                                <GradientStop Color="#47FFFFFF" Offset="0" />
                                 <GradientStop Color="#00FFFFFF" Offset="1" />
                             </RadialGradientBrush>
                         </Border.Background>
@@ -508,6 +510,33 @@
                             <!-- ============ 应用图标 ============ -->
                             <Grid Visibility="{Binding IsApp, Converter={StaticResource BoolToVisibility}}">
 
+                                <!-- 兜底：图标实在取不到（exe 被占用 / 商店应用 / 路径已失效）时
+                                     显示名字首字，别留一个看不懂的空格子 -->
+                                <Border>
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                            <Setter Property="CornerRadius"
+                                                    Value="{Binding DataContext.Settings.TileRadius, RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
+                                            <Setter Property="Background" Value="#2EFFFFFF" />
+                                            <Setter Property="BorderBrush" Value="#3DFFFFFF" />
+                                            <Setter Property="BorderThickness" Value="1" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+
+                                    <TextBlock Text="{Binding Initial}"
+                                               FontWeight="SemiBold"
+                                               Foreground="#E6FFFFFF"
+                                               FontSize="{Binding DataContext.Settings.PlusFontSize, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+
                                 <!-- 底板：整块画时为 null（不画）；圆形/字形图标时用图标自己的颜色补满圆角方形 -->
                                 <Rectangle RadiusX="{Binding DataContext.Settings.TileRadius, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                            RadiusY="{Binding DataContext.Settings.TileRadius, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -553,172 +582,117 @@
                             <Viewbox Stretch="Uniform"
                                      Visibility="{Binding IsBrand, Converter={StaticResource BoolToVisibility}}">
                                 <Grid Width="100" Height="100">
-                                    <Border CornerRadius="23.5">
+                                    <!-- 液态玻璃底板 -->
+                                    <Border CornerRadius="23.5" BorderBrush="#5CFFFFFF" BorderThickness="1.2">
                                         <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                <GradientStop Color="#7EE0FF" Offset="0" />
-                                                <GradientStop Color="#2563EB" Offset="1" />
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                                                <GradientStop Color="#33FFFFFF" Offset="0" />
+                                                <GradientStop Color="#17FFFFFF" Offset="0.55" />
+                                                <GradientStop Color="#0DFFFFFF" Offset="1" />
                                             </LinearGradientBrush>
                                         </Border.Background>
                                     </Border>
 
-                                    <!-- 左上柔光 -->
                                     <Border CornerRadius="23.5">
                                         <Border.Background>
-                                            <RadialGradientBrush GradientOrigin="0.28,0.22"
-                                                                 Center="0.28,0.22"
+                                            <RadialGradientBrush GradientOrigin="0.26,0.16"
+                                                                 Center="0.26,0.16"
                                                                  RadiusX="0.85" RadiusY="0.85">
-                                                <GradientStop Color="#5CFFFFFF" Offset="0" />
+                                                <GradientStop Color="#47FFFFFF" Offset="0" />
                                                 <GradientStop Color="#00FFFFFF" Offset="1" />
                                             </RadialGradientBrush>
                                         </Border.Background>
                                     </Border>
 
-                                    <!-- 玻璃胶囊 -->
-                                    <Border Width="66" Height="21" CornerRadius="10.5"
+                                    <!-- 白色胶囊 + 三个挖空点 -->
+                                    <Border Width="64" Height="20" CornerRadius="10"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
-                                            Background="#B8FFFFFF" />
+                                            Background="#EBFFFFFF" />
 
-                                    <!-- 三个图标位 -->
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Border Width="9" Height="9" CornerRadius="2.2"
-                                                Background="#FFFFFFFF" Margin="0,0,4,0" />
-                                        <Border Width="9" Height="9" CornerRadius="2.2"
-                                                Background="#FFFFFFFF" Margin="0,0,4,0" />
-                                        <Border Width="9" Height="9" CornerRadius="2.2"
-                                                Background="#FFFFFFFF" />
+                                        <Border Width="8" Height="8" CornerRadius="2"
+                                                Background="#4A5A6E" Margin="0,0,4,0" />
+                                        <Border Width="8" Height="8" CornerRadius="2"
+                                                Background="#4A5A6E" Margin="0,0,4,0" />
+                                        <Border Width="8" Height="8" CornerRadius="2"
+                                                Background="#4A5A6E" />
                                     </StackPanel>
                                 </Grid>
                             </Viewbox>
 
-                            <!-- ============ 启动台（3×3 彩色点阵） ============ -->
+                            <!-- ============ 启动台（3×3 纯白点阵，液态玻璃底） ============ -->
                             <Viewbox Stretch="Uniform"
                                      Visibility="{Binding IsLaunchpad, Converter={StaticResource BoolToVisibility}}">
                                 <Grid Width="100" Height="100">
-                                    <Border CornerRadius="23.5">
+                                    <!-- 液态玻璃底板 -->
+                                    <Border CornerRadius="23.5" BorderBrush="#5CFFFFFF" BorderThickness="1.2">
                                         <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#FBFCFD" Offset="0" />
-                                                <GradientStop Color="#CFD4DB" Offset="1" />
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                                                <GradientStop Color="#33FFFFFF" Offset="0" />
+                                                <GradientStop Color="#17FFFFFF" Offset="0.55" />
+                                                <GradientStop Color="#0DFFFFFF" Offset="1" />
                                             </LinearGradientBrush>
                                         </Border.Background>
                                     </Border>
 
                                     <Border CornerRadius="23.5">
                                         <Border.Background>
-                                            <RadialGradientBrush GradientOrigin="0.3,0.18"
-                                                                 Center="0.3,0.18"
-                                                                 RadiusX="0.9" RadiusY="0.9">
-                                                <GradientStop Color="#4DFFFFFF" Offset="0" />
+                                            <RadialGradientBrush GradientOrigin="0.26,0.16"
+                                                                 Center="0.26,0.16"
+                                                                 RadiusX="0.85" RadiusY="0.85">
+                                                <GradientStop Color="#47FFFFFF" Offset="0" />
                                                 <GradientStop Color="#00FFFFFF" Offset="1" />
                                             </RadialGradientBrush>
                                         </Border.Background>
                                     </Border>
 
+                                    <!-- 九宫格：统一白色，靠透明度拉出层次（左上最亮） -->
                                     <UniformGrid Rows="3" Columns="3"
-                                                 Width="68" Height="68"
+                                                 Width="64" Height="64"
                                                  HorizontalAlignment="Center" VerticalAlignment="Center">
-                                        <Border Background="#FF6B6B" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#FFB84D" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#FFD93D" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#6BCB77" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#4D96FF" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#9B5DE5" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#F15BB5" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#00BBF9" CornerRadius="5" Margin="2.2" />
-                                        <Border Background="#8D99AE" CornerRadius="5" Margin="2.2" />
+                                        <Border Background="#F2FFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#E8FFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#DDFFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#E8FFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#DDFFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#D2FFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#DDFFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#D2FFFFFF" CornerRadius="5" Margin="2.4" />
+                                        <Border Background="#C7FFFFFF" CornerRadius="5" Margin="2.4" />
                                     </UniformGrid>
                                 </Grid>
                             </Viewbox>
 
-                            <!-- ============ Windows 菜单（四个方块，纯矢量） ============ -->
+                            <!-- ============ Windows 菜单（四个白色方块） ============ -->
                             <ContentControl Template="{StaticResource IconTileTemplate}"
                                             Visibility="{Binding IsWindows, Converter={StaticResource BoolToVisibility}}">
                                 <Viewbox Width="72" Height="72">
                                     <UniformGrid Rows="2" Columns="2" Width="100" Height="100">
-                                        <!-- 左上最亮，右下最深，跟 Win11 官方标志的光感一致 -->
-                                        <Border CornerRadius="4" Margin="3">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#66D2F7" Offset="0" />
-                                                    <GradientStop Color="#2AA9E8" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-                                        <Border CornerRadius="4" Margin="3">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#2AA9E8" Offset="0" />
-                                                    <GradientStop Color="#1583CE" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-                                        <Border CornerRadius="4" Margin="3">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#2AA9E8" Offset="0" />
-                                                    <GradientStop Color="#1583CE" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-                                        <Border CornerRadius="4" Margin="3">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                    <GradientStop Color="#1E93D9" Offset="0" />
-                                                    <GradientStop Color="#0B6FBA" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
+                                        <Border CornerRadius="4" Margin="3" Background="#F2FFFFFF" />
+                                        <Border CornerRadius="4" Margin="3" Background="#E6FFFFFF" />
+                                        <Border CornerRadius="4" Margin="3" Background="#E6FFFFFF" />
+                                        <Border CornerRadius="4" Margin="3" Background="#D9FFFFFF" />
                                     </UniformGrid>
                                 </Viewbox>
                             </ContentControl>
 
-                            <!-- ============ 我的电脑（显示器，纯矢量） ============ -->
+                            <!-- ============ 我的电脑（白色线条显示器） ============ -->
                             <ContentControl Template="{StaticResource IconTileTemplate}"
                                             Visibility="{Binding IsComputer, Converter={StaticResource BoolToVisibility}}">
                                 <Viewbox Width="78" Height="78">
-                                    <Grid Width="100" Height="100">
-                                        <!-- 外框 -->
-                                        <Border Width="86" Height="60" CornerRadius="6"
-                                                HorizontalAlignment="Center" VerticalAlignment="Top"
-                                                Margin="0,6,0,0" Background="#39424F" />
-
-                                        <!-- 屏幕 -->
-                                        <Border Width="78" Height="52" CornerRadius="3"
-                                                HorizontalAlignment="Center" VerticalAlignment="Top"
-                                                Margin="0,10,0,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0.9,1">
-                                                    <GradientStop Color="#7FE6FF" Offset="0" />
-                                                    <GradientStop Color="#3BB6F0" Offset="0.45" />
-                                                    <GradientStop Color="#1877D2" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-
-                                        <!-- 屏幕左上角高光 -->
-                                        <Border Width="78" Height="52" CornerRadius="3"
-                                                HorizontalAlignment="Center" VerticalAlignment="Top"
-                                                Margin="0,10,0,0">
-                                            <Border.Background>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="0.55,0.75">
-                                                    <GradientStop Color="#66FFFFFF" Offset="0" />
-                                                    <GradientStop Color="#00FFFFFF" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                        </Border>
-
+                                    <Canvas Width="100" Height="100">
+                                        <!-- 屏幕轮廓 -->
+                                        <Rectangle Canvas.Left="12" Canvas.Top="16" Width="76" Height="54"
+                                                   RadiusX="6" RadiusY="6"
+                                                   Stroke="#EBFFFFFF" StrokeThickness="5" />
+                                        <!-- 屏幕里一条淡光，暗示玻璃反光 -->
+                                        <Path Data="M18,24 L48,24 L24,60 L18,60 Z" Fill="#2EFFFFFF" />
                                         <!-- 支架 -->
-                                        <Border Width="8" Height="14"
-                                                HorizontalAlignment="Center" VerticalAlignment="Top"
-                                                Margin="0,66,0,0" Background="#7C8798" />
-
-                                        <!-- 底座 -->
-                                        <Border Width="42" Height="7" CornerRadius="3.5"
-                                                HorizontalAlignment="Center" VerticalAlignment="Top"
-                                                Margin="0,79,0,0" Background="#98A3B3" />
-                                    </Grid>
+                                        <Path Data="M50,70 L50,80 M36,82 L64,82"
+                                              Stroke="#EBFFFFFF" StrokeThickness="5"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                    </Canvas>
                                 </Viewbox>
                             </ContentControl>
 
@@ -726,13 +700,25 @@
                             <Viewbox Stretch="Uniform"
                                      Visibility="{Binding IsFolder, Converter={StaticResource BoolToVisibility}}">
                                 <Grid Width="100" Height="100">
-                                    <!-- 底板跟 IconTileTemplate 同一套，圆角比例才对得上 -->
+                                    <!-- 液态玻璃底板 -->
+                                    <Border CornerRadius="23.5" BorderBrush="#5CFFFFFF" BorderThickness="1.2">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0.6,1">
+                                                <GradientStop Color="#33FFFFFF" Offset="0" />
+                                                <GradientStop Color="#17FFFFFF" Offset="0.55" />
+                                                <GradientStop Color="#0DFFFFFF" Offset="1" />
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+
                                     <Border CornerRadius="23.5">
                                         <Border.Background>
-                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#FBFCFD" Offset="0" />
-                                                <GradientStop Color="#CFD4DB" Offset="1" />
-                                            </LinearGradientBrush>
+                                            <RadialGradientBrush GradientOrigin="0.26,0.16"
+                                                                 Center="0.26,0.16"
+                                                                 RadiusX="0.85" RadiusY="0.85">
+                                                <GradientStop Color="#47FFFFFF" Offset="0" />
+                                                <GradientStop Color="#00FFFFFF" Offset="1" />
+                                            </RadialGradientBrush>
                                         </Border.Background>
                                     </Border>
 
@@ -752,13 +738,13 @@
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
 
-                                    <!-- 空文件夹：画个文件夹轮廓，不然就是个白方块 -->
-                                    <Viewbox Stretch="Uniform" Width="68" Height="68"
+                                    <!-- 空文件夹：白色线条文件夹，跟整体简约风一致 -->
+                                    <Viewbox Stretch="Uniform" Width="60" Height="60"
                                              Visibility="{Binding IsEmptyFolder, Converter={StaticResource BoolToVisibility}}">
                                         <Path Width="24" Height="24" Stretch="Uniform"
-                                              Stroke="#8A93A0" StrokeThickness="1.6"
+                                              Stroke="#EBFFFFFF" StrokeThickness="1.7"
                                               StrokeLineJoin="Round"
-                                              Fill="#26FFFFFF"
+                                              Fill="#1AFFFFFF"
                                               Data="M3,7.5a2,2 0 0 1 2-2h4.6l2.2,2.6H19a2,2 0 0 1 2,2v8.4a2,2 0 0 1-2,2H5a2,2 0 0 1-2-2z" />
                                     </Viewbox>
                                 </Grid>
@@ -815,6 +801,48 @@
                                 </Grid>
                             </Viewbox>
 
+                            <!-- ============ 全部窗口（预览区放不下时的入口） ============ -->
+                            <Viewbox Stretch="Uniform"
+                                     Visibility="{Binding IsWindowList, Converter={StaticResource BoolToVisibility}}">
+                                <Grid Width="100" Height="64">
+                                    <Border CornerRadius="9" Background="#47FFFFFF"
+                                            BorderBrush="#3DFFFFFF" BorderThickness="1.5" />
+
+                                    <!-- 3×3 网格：把剩下的摊开看 -->
+                                    <Viewbox Width="30" Height="30"
+                                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Canvas Width="23" Height="23">
+                                            <Ellipse Canvas.Left="0" Canvas.Top="0" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="9" Canvas.Top="0" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="18" Canvas.Top="0" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="0" Canvas.Top="9" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="9" Canvas.Top="9" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="18" Canvas.Top="9" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="0" Canvas.Top="18" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="9" Canvas.Top="18" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                            <Ellipse Canvas.Left="18" Canvas.Top="18" Width="5" Height="5" Fill="#D2FFFFFF" />
+                                        </Canvas>
+                                    </Viewbox>
+
+                                    <Border CornerRadius="9" BorderBrush="#4DFFFFFF" BorderThickness="1.5" />
+
+                                    <!-- 折叠了几个应用（这个 1 也要显示，和普通预览的 >1 不同） -->
+                                    <Border CornerRadius="6.5" Width="13" Height="13"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Margin="0,1.5,1.5,0"
+                                            Background="#E6E8892B"
+                                            BorderBrush="#66FFFFFF" BorderThickness="1"
+                                            Visibility="{Binding ShowWindowCount,
+                                                         Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{Binding WindowCount}"
+                                                   FontSize="8.5" FontWeight="Bold"
+                                                   Foreground="#FFFDFEFE"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                    </Border>
+                                </Grid>
+                            </Viewbox>
+
                             <!-- ============ 分隔线 ============ -->
                             <Grid Visibility="{Binding IsSeparator, Converter={StaticResource BoolToVisibility}}">
                                 <Border CornerRadius="0.75"
@@ -831,41 +859,28 @@
                             <ContentControl Template="{StaticResource IconTileTemplate}"
                                             Visibility="{Binding IsTrash, Converter={StaticResource BoolToVisibility}}">
                                 <Viewbox Width="90" Height="90">
-                                    <Grid Width="100" Height="100">
+                                    <Canvas Width="100" Height="100">
                                         <!-- 提手 -->
-                                        <Path Data="M38,26 L38,18 Q38,13 43,13 L57,13 Q62,13 62,18 L62,26"
-                                              Stroke="#7D8794" StrokeThickness="6"
+                                        <Path Data="M39,28 L39,21 Q39,16 44,16 L56,16 Q61,16 61,21 L61,28"
+                                              Stroke="#EBFFFFFF" StrokeThickness="5"
                                               StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                               Fill="Transparent" />
 
                                         <!-- 盖子 -->
-                                        <Border Height="10"
-                                                VerticalAlignment="Top"
-                                                Margin="13,22,13,0"
-                                                CornerRadius="5"
-                                                Background="#B9C2CD" />
+                                        <Path Data="M20,30 L80,30"
+                                              Stroke="#EBFFFFFF" StrokeThickness="5"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
 
-                                        <!-- 桶身：白砖上要压得住，所以整体比原来深一档 -->
-                                        <Path Data="M20,34 L80,34 L72,88 Q71,94 65,94 L35,94 Q29,94 28,88 Z">
-                                            <Path.Fill>
-                                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                                    <GradientStop Color="#FFFFFF" Offset="0" />
-                                                    <GradientStop Color="#98A3B0" Offset="0.45" />
-                                                    <GradientStop Color="#D2D9E1" Offset="1" />
-                                                </LinearGradientBrush>
-                                            </Path.Fill>
-                                        </Path>
+                                        <!-- 桶身 -->
+                                        <Path Data="M26,38 L74,38 L68,84 Q67,89 62,89 L38,89 Q33,89 32,84 Z"
+                                              Stroke="#EBFFFFFF" StrokeThickness="5"
+                                              StrokeLineJoin="Round" Fill="#1AFFFFFF" />
 
-                                        <!-- 桶身边缘 -->
-                                        <Path Data="M20,34 L80,34 L72,88 Q71,94 65,94 L35,94 Q29,94 28,88 Z"
-                                              Stroke="#8B95A2" StrokeThickness="1.6"
-                                              StrokeLineJoin="Round" Fill="Transparent" />
-
-                                        <!-- 竖纹 -->
-                                        <Line X1="40" Y1="46" X2="42" Y2="82" Stroke="#6B7480" StrokeThickness="3" Opacity="0.4" />
-                                        <Line X1="50" Y1="46" X2="50" Y2="82" Stroke="#6B7480" StrokeThickness="3" Opacity="0.4" />
-                                        <Line X1="60" Y1="46" X2="58" Y2="82" Stroke="#6B7480" StrokeThickness="3" Opacity="0.4" />
-                                    </Grid>
+                                        <!-- 桶身竖纹 -->
+                                        <Path Data="M42,50 L43,77 M50,50 L50,77 M58,50 L57,77"
+                                              Stroke="#A6FFFFFF" StrokeThickness="3.4"
+                                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                    </Canvas>
                                 </Viewbox>
                             </ContentControl>
 

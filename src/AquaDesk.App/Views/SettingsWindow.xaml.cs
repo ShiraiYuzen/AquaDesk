@@ -64,14 +64,56 @@ public partial class SettingsWindow : Window
     /// <summary>「关于」页的三行信息：版本、运行时、配置目录。</summary>
     private void FillAbout()
     {
-        var version = typeof(App).Assembly.GetName().Version ?? new Version(0, 0, 0);
+        // 版本读 InformationalVersion（0.6.9），不是 AssemblyVersion（0.4.12.0）。
+        // 后者是给 Win32 文件版本留的四段数字，一直没跟着发版改，直接显示会差一大截。
+        VersionValue.Text = UpdateService.CurrentVersionText;
 
-        VersionValue.Text = $"{version.Major}.{version.Minor}.{version.Build}";
         RuntimeValue.Text = $".NET {Environment.Version}";
         ConfigPathValue.Text = SettingsStore.RootDirectory;
+
+        // 后台静默检查已经发现新版：把按钮文字直接改成「有新版本 x.y.z」，
+        // 不用用户先点一次才知道。
+        if (UpdateService.PendingUpdate is { } pending)
+        {
+            CheckUpdateButton.Content = $"有新版本 {pending.Version}";
+        }
     }
 
-    private void OnStyleLiquid(object sender, RoutedEventArgs e) => _settings.Style = DockStyle.Liquid;
+    /// <summary>
+    /// 检查更新：按钮先禁用，回来再恢复。用 async void 是因为它是事件处理器，
+    /// 里面所有异常都由 UpdateService 兜住（网络、超时、解析都转成 Failed 结果）。
+    /// </summary>
+    private async void OnCheckUpdate(object sender, RoutedEventArgs e)
+    {
+        if (!CheckUpdateButton.IsEnabled) return;
+
+        var label = CheckUpdateButton.Content;
+
+        CheckUpdateButton.IsEnabled = false;
+        CheckUpdateButton.Content = "检查中…";
+
+        try
+        {
+            var result = await UpdateService.CheckAsync();
+
+            App.Log($"检查更新：结果={result.Status}，准备弹窗", null);
+
+            var dialog = new UpdateDialog(result) { Owner = this };
+            dialog.ShowDialog();
+
+            App.Log("检查更新：对话框已关闭", null);
+        }
+        catch (Exception ex)
+        {
+            App.Log("设置页：检查更新异常", ex);
+        }
+        finally
+        {
+            CheckUpdateButton.Content = label;
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
 
     private void OnStyleClassic(object sender, RoutedEventArgs e) => _settings.Style = DockStyle.Classic;
 
