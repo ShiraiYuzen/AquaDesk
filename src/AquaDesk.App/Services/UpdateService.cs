@@ -58,7 +58,13 @@ public static class UpdateService
     private const string Owner = "ShiraiYuzen";
     private const string Repo = "AquaDesk";
 
+#if NET48_BUILD
+    // net48 专用发布线：tag 形如 vX.Y.Z-net48。用列表接口，只认这些 tag，
+    // 避免被同仓库的 .NET 8 最新发布（releases/latest）误导而装错运行时。
+    private const string ApiPath = $"repos/{Owner}/{Repo}/releases?per_page=100";
+#else
     private const string ApiPath = $"repos/{Owner}/{Repo}/releases/latest";
+#endif
 
     /// <summary>
     /// 请求源，按顺序试。第一个是官方 API，后面是常见镜像前缀 ——
@@ -170,6 +176,15 @@ public static class UpdateService
                 }
 
                 var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+
+#if NET48_BUILD
+                var info = ParseLatestNet48(json);
+                if (info is null)
+                {
+                    // 仓库里还没有 -net48 发布：视为已是最新，不报错、不再重试其它源
+                    return new UpdateCheckResult(UpdateStatus.UpToDate, null, string.Empty);
+                }
+#else
                 var info = ParseRelease(json);
 
                 if (info is null)
@@ -178,6 +193,7 @@ public static class UpdateService
                     trace.Add($"200（解析失败）  {source}");
                     continue;
                 }
+#endif
 
                 var available = IsNewer(info.Version, CurrentVersionText);
 
@@ -587,6 +603,50 @@ public static class UpdateService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[AquaDesk] 解析 release 失败：{ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// net48 专用：在 releases 列表里挑出 tag 以 <c>-net48</c> 结尾、且版本号最大的那个，解析成 UpdateInfo。
+    /// 这样 net48 用户只看自己的发布线，不会被同仓库的 .NET 8 latest 发布带偏（否则会装错运行时）。
+    /// </summary>
+    private static UpdateInfo? ParseLatestNet48(string json)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(json);
+
+            if (document.RootElement.ValueKind != JsonValueKind.Array) return ParseRelease(json);
+
+            UpdateInfo? best = null;
+            string? bestVersion = null;
+
+            foreach (var release in document.RootElement.EnumerateArray())
+            {
+                var tag = release.TryGetProperty("tag_name", out var t)
+                    ? t.GetString() ?? string.Empty
+                    : string.Empty;
+
+                if (!tag.EndsWith("-net48", StringComparison.OrdinalIgnoreCase)) continue;
+
+                var v = tag.TrimStart('v', 'V');
+                if (bestVersion is null || IsNewer(v, bestVersion))
+                {
+                    var candidate = ParseRelease(release.GetRawText());
+                    if (candidate is not null)
+                    {
+                        best = candidate;
+                        bestVersion = v;
+                    }
+                }
+            }
+
+            return best;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 解析 net48 发布列表失败：{ex.Message}");
             return null;
         }
     }
