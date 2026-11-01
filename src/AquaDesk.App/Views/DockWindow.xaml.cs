@@ -1790,13 +1790,8 @@ public partial class DockWindow : Window
 
         foreach (var (handle, title) in item.GroupWindows)
         {
-            var captured = handle;   // 闭包捕获当前窗口的句柄
-            var entry = new MenuItem
-            {
-                Header = string.IsNullOrWhiteSpace(title) ? "（无标题窗口）" : title
-            };
-            entry.Click += (_, _) => WindowPreviewService.Activate(captured);
-            menu.Items.Add(entry);
+            menu.Items.Add(CreateWindowEntry(
+                string.IsNullOrWhiteSpace(title) ? "（无标题窗口）" : title, handle));
         }
 
         // 末尾：一键关掉这个应用合并组里的全部窗口
@@ -1832,11 +1827,9 @@ public partial class DockWindow : Window
             if (group.Windows.Count == 1)
             {
                 var only = group.Windows[0];
-                var handle = only.Handle;
 
-                var entry = new MenuItem { Header = DescribeSingle(group.AppName, only.Title) };
-                entry.Click += (_, _) => WindowPreviewService.Activate(handle);
-                menu.Items.Add(entry);
+                menu.Items.Add(CreateWindowEntry(
+                    DescribeSingle(group.AppName, only.Title), only.Handle));
                 continue;
             }
 
@@ -1845,13 +1838,9 @@ public partial class DockWindow : Window
 
             foreach (var window in group.Windows)
             {
-                var handle = window.Handle;
-                var child = new MenuItem
-                {
-                    Header = string.IsNullOrWhiteSpace(window.Title) ? "（无标题窗口）" : window.Title
-                };
-                child.Click += (_, _) => WindowPreviewService.Activate(handle);
-                parent.Items.Add(child);
+                parent.Items.Add(CreateWindowEntry(
+                    string.IsNullOrWhiteSpace(window.Title) ? "（无标题窗口）" : window.Title,
+                    window.Handle));
             }
 
             menu.Items.Add(parent);
@@ -1871,6 +1860,43 @@ public partial class DockWindow : Window
 
         var trimmed = title.Length > 40 ? title[..40] + "…" : title;
         return $"{appName} · {trimmed}";
+    }
+
+    /// <summary>
+    /// 建一个窗口条目：左键点一下切过去，右键弹「关闭窗口」。
+    /// 和 Dock 缩略图预览的右键菜单（WindowPreviewMenu）保持一致 —— 提权窗口置灰并说明原因。
+    /// </summary>
+    private static MenuItem CreateWindowEntry(string title, IntPtr handle)
+    {
+        var canClose = WindowPreviewService.CanControl(handle);
+
+        var header = new TextBlock
+        {
+            Text = title,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+        };
+
+        // 菜单文字走主题的 MenuFgBrush，显式取一次，避免黑字落在深色玻璃上
+        if (Application.Current.TryFindResource("MenuFgBrush") is Brush fg)
+        {
+            header.Foreground = fg;
+        }
+
+        var closeItem = new MenuItem
+        {
+            Header = canClose ? "关闭窗口" : "关闭窗口（需要管理员权限）",
+            IsEnabled = canClose,
+        };
+        closeItem.Click += (_, _) => WindowPreviewService.Close(handle);
+
+        var closeMenu = new ContextMenu();
+        closeMenu.Items.Add(closeItem);
+        header.ContextMenu = closeMenu;
+
+        var entry = new MenuItem { Header = header };
+        entry.Click += (_, _) => WindowPreviewService.Activate(handle);
+        return entry;
     }
 
 
