@@ -25,9 +25,13 @@ if ([string]::IsNullOrWhiteSpace($Dir)) {
     $Dir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 }
 
-# 这张指纹必须与 README「验证作者身份」一节里写的一致。
-# 它是整条信任链的锚点：指纹对上 = 用的是同一把私钥 = 同一个发布者。
-$ExpectedThumbprint = "BF1DDC33C869D5C08E4417777F88E7041692390F"
+# 可信签名者：证书换代时在这里追加一行，历史版本的包仍可验证。
+# 这些指纹必须与 README「验证作者身份」一节里写的一致 ——
+# 它才是整条信任链的锚点：指纹对上 = 用的是同一把私钥 = 同一个发布者。
+$TrustedSigners = [ordered]@{
+    "62DF52A960B467FE81D1B471A08A8447A86FFA5B" = "v0.6.4 起"
+    "BF1DDC33C869D5C08E4417777F88E7041692390F" = "v0.6.2 ~ v0.6.3"
+}
 
 function Fail($msg) {
     Write-Host ""
@@ -73,10 +77,11 @@ $auth = Get-AuthenticodeSignature -LiteralPath $ExePath
 if (-not $auth.SignerCertificate) { Fail "exe 没有 Authenticode 签名" }
 
 $thumb = $auth.SignerCertificate.Thumbprint
-if ($thumb -ne $ExpectedThumbprint) {
-    Fail "签名证书指纹不符`n     期望: $ExpectedThumbprint`n     实际: $thumb`n     这不是作者发布的文件"
+$generation = $TrustedSigners[$thumb]
+if (-not $generation) {
+    Fail "签名证书指纹不在可信列表里`n     实际: $thumb`n     可信: $($TrustedSigners.Keys -join ' / ')`n     这不是作者发布的文件"
 }
-Write-Host "  [2/3] 签名证书指纹与 README 公布的一致" -ForegroundColor Green
+Write-Host "  [2/3] 签名证书指纹可信（$generation）" -ForegroundColor Green
 
 # ---- 第 3 步：清单确实被这把私钥签过（防「换 exe + 改哈希」）----
 $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPublicKey($auth.SignerCertificate)
@@ -94,6 +99,7 @@ if (-not $ok) { Fail "清单签名无效（SHA256SUMS.txt 被改过）" }
 Write-Host "  [3/3] 清单签名有效" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "  通过：文件出自 CN=ShiraiYuzen (AquaDesk) 这把私钥，且与 README 公布的指纹一致。" -ForegroundColor Green
+Write-Host "  通过：文件出自 CN=ShiraiYuzen (AquaDesk) 这把私钥（$generation），" -ForegroundColor Green
+Write-Host "        且与 README 公布的指纹一致。" -ForegroundColor Green
 Write-Host ""
 exit 0
