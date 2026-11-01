@@ -16,13 +16,13 @@
     <Window.Resources>
         <ContextMenu x:Key="AppEntryMenu" x:Shared="False">
             <MenuItem Header="打开" Click="OnMenuOpenEntry" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="从启动台移除" Click="OnMenuRemoveEntry" />
         </ContextMenu>
 
         <ContextMenu x:Key="FolderEntryMenu" x:Shared="False">
             <MenuItem Header="打开文件夹" Click="OnMenuOpenEntry" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="解散文件夹" Click="OnMenuDissolveFolder" />
             <MenuItem Header="从启动台移除" Click="OnMenuRemoveEntry" />
         </ContextMenu>

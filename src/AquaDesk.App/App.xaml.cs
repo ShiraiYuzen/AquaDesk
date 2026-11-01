@@ -348,7 +348,8 @@ public partial class App : Application
         OverlayZOrder.Register(dock);
         OverlayZOrder.Register(_clock);
         OverlayZOrder.Register(_statusDock);
-        OverlayZOrder.HoldTopmost = () => dock.IsTemporaryTopmostOpen;
+        // 菜单开着的时候也别把浮层抬回置顶，否则状态胶囊会盖住刚弹出的菜单
+        OverlayZOrder.HoldTopmost = () => dock.IsTemporaryTopmostOpen || dock.IsMenuOpen;
 
         // --settings：启动后直接把设置页打开。
         // 给「更新完引导用户看设置」和命令行/快捷方式留个入口，省得每次都去点图标。
@@ -449,6 +450,18 @@ public partial class App : Application
             // 验证键盘焦点是否真的转移过去了
             var fg = Services.WindowQuery.GetForegroundProcessName();
             Log($"自测聚焦后：前台进程={fg}", null);
+        }
+
+        // 排查用：--test-allwindows 直接弹出「全部窗口」菜单（验证菜单的层级和自动关闭）
+        if (e.Args.Contains("--test-allwindows"))
+        {
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+            timer.Tick += (_, _) =>
+            {
+                timer.Stop();
+                dock.OpenAllWindowsMenuForTest();
+            };
+            timer.Start();
         }
 
         // 排查用：--test-scan 打印启动台会扫到哪些应用，用来核对过滤规则有没有误杀

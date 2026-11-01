@@ -109,7 +109,7 @@
                                     <Grid.ContextMenu>
                                         <ContextMenu>
                                             <MenuItem Header="打开" Click="OnMenuOpenEntry" />
-                                            <Separator />
+                                            <MenuItem Style="{StaticResource MenuDividerItem}" />
                                             <MenuItem Header="从文件夹移除" Click="OnMenuRemoveEntry" />
                                         </ContextMenu>
                                     </Grid.ContextMenu>

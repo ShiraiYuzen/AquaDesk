@@ -82,12 +82,25 @@
         </Setter>
     </Style>
 
-    <Style TargetType="Separator">
+
+    <!--
+        菜单分割线。
+        不用 Separator：ContextMenu 会把非 MenuItem 的项塞进 ContentPresenter，
+        那个容器按内容取宽（实测只有 66px 还偏右），线没法居中。
+        改成「一个禁用的 MenuItem」——MenuItem 会拉满菜单宽度，里面的线自己居中。
+    -->
+    <Style x:Key="MenuDividerItem" TargetType="MenuItem">
+        <Setter Property="IsEnabled" Value="False" />
+        <Setter Property="Focusable" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="Separator">
-                    <Border Height="1" Margin="8,5"
-                            Background="{DynamicResource MenuSeparatorBrush}" />
+                <ControlTemplate TargetType="MenuItem">
+                    <!-- 只占 5px：和系统默认分隔线一样紧，不然文字离线的距离会比别的菜单远 -->
+                    <Grid Height="5">
+                        <Border Width="96" Height="1"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Background="{DynamicResource MenuSeparatorBrush}" />
+                    </Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
