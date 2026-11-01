@@ -43,14 +43,50 @@ public partial class App : Application
 
     public App()
     {
-        DispatcherUnhandledException += (_, e) => Log("UI 线程未处理异常", e.Exception);
-        AppDomain.CurrentDomain.UnhandledException += (_, e) => Log("后台线程未处理异常", e.ExceptionObject as Exception);
+        DispatcherUnhandledException += (_, e) =>
+        {
+            // 崩溃前先把任务栏还回去 —— 否则用户会卡在「没有任务栏」的桌面上
+            RestoreSystemState("UI 线程未处理异常");
+            Log("UI 线程未处理异常", e.Exception);
+        };
+
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            RestoreSystemState("后台线程未处理异常");
+            Log("后台线程未处理异常", e.ExceptionObject as Exception);
+        };
+
+        // 注销 / 关机：进程跟着结束时先把任务栏还回去，下次登录不带着残留状态
+        SessionEnding += (_, _) => RestoreSystemState("会话结束");
+
+        // 兜底：Environment.Exit 之类的收尾路径也会走到这里（在 OnExit 之后）
+        AppDomain.CurrentDomain.ProcessExit += (_, _) => RestoreSystemState("进程退出");
 
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
             Log("未观察的任务异常", e.Exception);
             e.SetObserved();
         };
+    }
+
+    /// <summary>
+    /// 把「我们对系统做过的改动」还原：任务栏显示出来、清掉隐藏标记。
+    ///
+    /// 桌面图标**故意不动** —— 那是用户自己的持久设置（正常退出也不还原），
+    /// 而且启动时会按系统实际状态回写设置，崩溃时清掉反而会把用户的开关悄悄改掉。
+    /// 真要在进程已经死掉之后恢复图标，用 <c>--restore</c>。
+    /// </summary>
+    private static void RestoreSystemState(string reason)
+    {
+        try
+        {
+            TaskbarService.SetVisible(true);
+            TaskbarService.ClearMarker();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[AquaDesk] 恢复系统状态失败（{reason}）：{ex.Message}");
+        }
     }
 
     /// <summary>关键事件与异常，永远落盘。</summary>
@@ -205,6 +241,17 @@ public partial class App : Application
         // 把正在跑的主程序接管掉（等于点一下开关就把自己重启了）。
         if (TryRunWifiCommand(e.Args)) return;
 
+        // 救援模式：被强杀 / 蓝屏之后任务栏可能还藏在外面，用这个参数救一次（不需要单实例锁）
+        if (e.Args.Contains("--restore"))
+        {
+            TaskbarService.SetVisible(true);
+            TaskbarService.ClearMarker();
+            DesktopIconService.SetVisible(true);
+            Log("--restore：任务栏与桌面图标已恢复", null);
+            Shutdown(0);
+            return;
+        }
+
         // 单实例：常驻工具开两份会互相打架
         _singleInstance = AcquireMutex(TimeSpan.Zero);
 
@@ -245,6 +292,14 @@ public partial class App : Application
         // 于是每次启动都把用户的「关」改回「开」—— 就是「关了自启又自己打开」。
         // 桌面图标仍以系统实际状态为准（那个没有副作用）。
         settings.HideDesktopIcons = !DesktopIconService.IsVisible();
+
+        // 上次是异常退出（标记没清）→ 先把任务栏还回去，再按设置重新应用。
+        // 覆盖「taskkill /F / 崩溃处理都没来得及跑」的情况：用户下次启动就自动修好。
+        if (TaskbarService.HasStaleMarker())
+        {
+            Log("检测到上次异常退出（任务栏隐藏标记残留），先恢复任务栏", null);
+            TaskbarService.SetVisible(true);
+        }
 
         // 任务栏反过来：以设置文件为准主动应用一遍。
         // 原来这里是 `HideTaskbar = !IsVisible()`，而 OnExit 会把任务栏还回去，

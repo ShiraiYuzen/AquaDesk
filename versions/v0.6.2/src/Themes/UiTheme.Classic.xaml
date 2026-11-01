@@ -1,0 +1,33 @@
+<!--
+    经典主题：最初 0.01 的浅灰配色。菜单和设置页都是最朴素的白底黑字。
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- 设置页 -->
+    <SolidColorBrush x:Key="UiPageBgBrush" Color="#FAFAFB" />
+    <SolidColorBrush x:Key="UiSidebarBgBrush" Color="#F5F5F8" />
+    <SolidColorBrush x:Key="UiTabSelectedBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="UiContentBgBrush" Color="#F6F6F8" />
+    <SolidColorBrush x:Key="UiCardBgBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="UiCardBorderBrush" Color="#ECECF0" />
+    <SolidColorBrush x:Key="UiTextPrimaryBrush" Color="#1B1B1F" />
+    <SolidColorBrush x:Key="UiTextSecondaryBrush" Color="#83838C" />
+    <SolidColorBrush x:Key="UiTextTertiaryBrush" Color="#9A9AA2" />
+    <SolidColorBrush x:Key="UiAccentBrush" Color="#0A84FF" />
+    <!-- 次级按钮 / 下拉框这类「浅色容器」的底色与描边，两套主题各给一份，
+         免得深色底下出现白底浅字 -->
+    <SolidColorBrush x:Key="UiFieldBgBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="UiFieldBorderBrush" Color="#DCDCE2" />
+
+    <SolidColorBrush x:Key="UiDividerBrush" Color="#F0F0F4" />
+    <SolidColorBrush x:Key="UiShadowBrush" Color="#000000" />
+
+    <!-- 右键菜单 -->
+    <SolidColorBrush x:Key="MenuBgBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="MenuBorderBrush" Color="#22000000" />
+    <SolidColorBrush x:Key="MenuFgBrush" Color="#1B1B1F" />
+    <SolidColorBrush x:Key="MenuFgDimBrush" Color="#8E8E96" />
+    <SolidColorBrush x:Key="MenuHoverBrush" Color="#0F000000" />
+    <SolidColorBrush x:Key="MenuSeparatorBrush" Color="#14000000" />
+</ResourceDictionary>
