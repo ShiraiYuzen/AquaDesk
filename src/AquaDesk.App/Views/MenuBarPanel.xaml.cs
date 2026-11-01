@@ -1098,6 +1098,28 @@ public partial class MenuBarPanel : UserControl
         Grid.SetColumn(actions, 2);
         grid.Children.Add(actions);
 
+        // 右键菜单：窗口程序给「关闭窗口」（优雅发 WM_CLOSE），托盘程序没有窗口，不给。
+        // 和右侧「结束」按钮区分开：结束是杀进程，关闭是正常让窗口自己退（能保存未保存的东西）。
+        if (!app.TrayOnly)
+        {
+            var canClose = WindowPreviewService.CanControl(app.Window);
+
+            var closeItem = new MenuItem
+            {
+                Header = canClose ? "关闭窗口" : "关闭窗口（需要管理员权限）",
+                IsEnabled = canClose
+            };
+            closeItem.Click += (_, _) =>
+            {
+                WindowPreviewService.Close(app.Window);
+                ReloadBackground();
+            };
+
+            var menu = new ContextMenu();
+            menu.Items.Add(closeItem);
+            row.ContextMenu = menu;
+        }
+
         row.Child = grid;
         return row;
     }

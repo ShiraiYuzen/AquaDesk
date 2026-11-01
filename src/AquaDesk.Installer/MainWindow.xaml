@@ -60,6 +60,30 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button">
+            <Setter Property="Foreground" Value="#FF8A8A" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="7" Background="Transparent"
+                                BorderThickness="1" BorderBrush="#33FF6B6B"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#18FF6B6B" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Margin="14" CornerRadius="14" Background="#FF1E1E24"
@@ -71,8 +95,6 @@
 
         <Grid Margin="26,20,26,20">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -92,36 +114,58 @@
                                HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="安装 AquaDesk" FontSize="17" FontWeight="SemiBold" Foreground="White" />
-                    <TextBlock Text="选择安装位置，其余自动完成" FontSize="12" Margin="0,3,0,0" Foreground="#99FFFFFF" />
+                    <TextBlock x:Name="TitleText" Text="安装 AquaDesk" FontSize="17" FontWeight="SemiBold" Foreground="White" />
+                    <TextBlock x:Name="SubtitleText" Text="选择安装位置，其余自动完成" FontSize="12" Margin="0,3,0,0" Foreground="#99FFFFFF" />
                 </StackPanel>
             </StackPanel>
 
-            <!-- 安装位置 -->
-            <TextBlock Grid.Row="1" Text="安装位置" FontSize="12.5" Margin="0,18,0,0" Foreground="#CCFFFFFF" />
-            <Grid Grid.Row="2" Margin="0,8,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBox x:Name="PathBox" Grid.Column="0" Padding="10,8"
-                         VerticalContentAlignment="Center"
-                         Background="#14FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1"
-                         Foreground="White" CaretBrush="White" />
-                <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Margin="8,0,0,0" Padding="16,8"
-                        Style="{StaticResource GhostButton}" Click="OnBrowse" />
-            </Grid>
+            <!-- ============ 安装视图（首次安装） ============ -->
+            <StackPanel x:Name="InstallView" Grid.Row="1" Margin="0,18,0,0">
+                <TextBlock Text="安装位置" FontSize="12.5" Foreground="#CCFFFFFF" />
+                <Grid Margin="0,8,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="PathBox" Grid.Column="0" Padding="10,8"
+                             VerticalContentAlignment="Center"
+                             Background="#14FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1"
+                             Foreground="White" CaretBrush="White" />
+                    <Button x:Name="BrowseButton" Grid.Column="1" Content="浏览…" Margin="8,0,0,0" Padding="16,8"
+                            Style="{StaticResource GhostButton}" Click="OnBrowse" />
+                </Grid>
+                <TextBlock x:Name="StatusText" Text="" FontSize="12" Margin="0,14,0,0"
+                           Foreground="#99FFFFFF" TextWrapping="Wrap" />
+            </StackPanel>
 
-            <!-- 状态 -->
-            <TextBlock x:Name="StatusText" Grid.Row="3" Text="" FontSize="12" Margin="0,14,0,0"
-                       Foreground="#99FFFFFF" TextWrapping="Wrap" />
+            <!-- ============ 已安装视图（检测到已装） ============ -->
+            <StackPanel x:Name="InstalledView" Grid.Row="1" Margin="0,20,0,0" Visibility="Collapsed">
+                <TextBlock Text="AquaDesk 已经安装在这台电脑上了，无需重复安装。" FontSize="12.5"
+                           Foreground="#E6FFFFFF" TextWrapping="Wrap" />
+                <Border Margin="0,12,0,0" CornerRadius="9" Background="#12FFFFFF" Padding="12,10">
+                    <StackPanel>
+                        <TextBlock Text="安装位置" FontSize="11" Foreground="#7FFFFFFF" />
+                        <TextBlock x:Name="InstalledPathText" Text="" FontSize="12.5" Margin="0,4,0,0"
+                                   Foreground="#F2FFFFFF" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="InstalledStatusText" Text="" FontSize="12" Margin="0,14,0,0"
+                           Foreground="#99FFFFFF" TextWrapping="Wrap" />
+            </StackPanel>
 
             <!-- 底部按钮 -->
-            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
                 <Button x:Name="CancelButton" Content="取消" Padding="18,8" Margin="0,0,10,0"
                         Style="{StaticResource GhostButton}" Click="OnCancel" />
+
                 <Button x:Name="InstallButton" Content="安装" Padding="28,8"
                         Style="{StaticResource PrimaryButton}" Click="OnInstall" />
+
+                <!-- 已安装模式的按钮（默认隐藏） -->
+                <Button x:Name="UninstallButton" Content="卸载" Padding="16,8" Margin="0,0,8,0"
+                        Style="{StaticResource DangerButton}" Visibility="Collapsed" Click="OnUninstall" />
+                <Button x:Name="OpenDirButton" Content="打开安装目录" Padding="20,8"
+                        Style="{StaticResource PrimaryButton}" Visibility="Collapsed" Click="OnOpenDir" />
             </StackPanel>
         </Grid>
     </Border>
