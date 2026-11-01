@@ -112,6 +112,7 @@ public partial class SettingsWindow : Window
                 _settings.ShowComputerIcon = defaults.ShowComputerIcon;
                 _settings.ShowTrashIcon = defaults.ShowTrashIcon;
                 _settings.ShowWindowPreviews = defaults.ShowWindowPreviews;
+                _settings.PreviewIconOnly = defaults.PreviewIconOnly;
                 _settings.TopMode = defaults.TopMode;
                 _settings.ShowBackgroundAppsButton = defaults.ShowBackgroundAppsButton;
                 _settings.ShowBatteryPercent = defaults.ShowBatteryPercent;
@@ -168,6 +169,7 @@ public partial class SettingsWindow : Window
         _settings.ShowComputerIcon = defaults.ShowComputerIcon;
         _settings.ShowTrashIcon = defaults.ShowTrashIcon;
         _settings.ShowWindowPreviews = defaults.ShowWindowPreviews;
+        _settings.PreviewIconOnly = defaults.PreviewIconOnly;
         _settings.TopMode = defaults.TopMode;
         _settings.ShowBackgroundAppsButton = defaults.ShowBackgroundAppsButton;
         _settings.ShowBatteryPercent = defaults.ShowBatteryPercent;

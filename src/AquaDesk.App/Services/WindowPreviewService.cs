@@ -158,10 +158,61 @@ public static class WindowPreviewService
         return info;
     }
 
-    /// <summary>抓一张缩略图。窗口最小化或抓不到时返回 null，界面会退回占位底色。</summary>
+    /// <summary>
+    /// 已知的密码 / 密钥类应用（exe 名，不带扩展名，小写比较）。
+    /// 这些应用大多没设 WDA 保护，但内容一旦被抓进常驻浮层就等于公开 —— 直接按名字兜住。
+    /// </summary>
+    private static readonly string[] SensitiveProcesses =
+    {
+        "1password", "1passwordbrowser", "bitwarden", "keepass", "keepassxc",
+        "lastpass", "dashlane", "enpass", "nordpass", "roboform",
+        "keeper", "keeperpasswordmanager", "protonpass", "bitwarden-desktop",
+        "authy", "authy desktop", "winauth", "strongbox"
+    };
+
+    /// <summary>
+    /// 这个窗口的缩略图该不该抓。两道判断：
+    /// 1. 窗口自己声明了捕获保护（<c>WDA_MONITOR</c> / <c>WDA_EXCLUDEFROMCAPTURE</c>）——
+    ///    密码管理器、DRM 播放器普遍这么干，本该被系统级尊重；
+    /// 2. 没声明但属于已知密码 / 密钥类应用（按 exe 名）。
+    /// </summary>
+    public static bool IsCaptureForbidden(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero) return true;
+
+        try
+        {
+            if (NativeMethods.GetWindowDisplayAffinity(hwnd, out var affinity)
+                && affinity != NativeMethods.WDA_NONE)
+            {
+                return true;
+            }
+
+            NativeMethods.GetWindowThreadProcessId(hwnd, out var processId);
+            if (processId == 0) return false;
+
+            var exePath = GetProcessInfo((int)processId).ExePath;
+            if (string.IsNullOrEmpty(exePath)) return false;
+
+            var name = System.IO.Path.GetFileNameWithoutExtension(exePath);
+            return SensitiveProcesses.Contains(name, StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            // 查不了就当不限制：宁可显示缩略图，也别因为一次异常把预览整片弄空
+            return false;
+        }
+    }
+
+    /// <summary>抓一张缩略图。窗口最小化、抓不到、或**不该抓**时返回 null，界面会退回应用图标。</summary>
     public static ImageSource? Capture(IntPtr hwnd, int width, int height)
     {
         if (hwnd == IntPtr.Zero || width <= 0 || height <= 0) return null;
+
+        // 隐私边界：窗口自己声明「禁止捕获」的、以及密码 / 密钥类应用，一律不抓。
+        // 这类内容一旦进缩略图，就等于暴露在任何截屏、录屏和旁人视线里。
+        if (IsCaptureForbidden(hwnd)) return null;
+
         if (NativeMethods.IsIconic(hwnd)) return null;
         if (Unsupported.Contains(hwnd)) return null;
 

@@ -84,6 +84,12 @@ Get-ChildItem $outDir -Filter "AquaDesk-*.exe" -File -ErrorAction SilentlyContin
 
 Copy-Item -LiteralPath $exe -Destination $target -Force
 
+# 校验和：Release 上只有 exe 没法验证来源，附一份 SHA256 清单（sha256sum 兼容格式）供用户核对
+$hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+$sums = Join-Path $outDir "SHA256SUMS.txt"
+"$hash  $([System.IO.Path]::GetFileName($target))" | Set-Content -LiteralPath $sums -Encoding ASCII
+Write-Host "  校验  dist\SHA256SUMS.txt  $hash" -ForegroundColor DarkGray
+
 # 发布目录只是中转站，留着白占 63MB
 Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
 
