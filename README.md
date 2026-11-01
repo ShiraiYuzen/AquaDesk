@@ -99,12 +99,24 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 ### 验证作者身份（推荐）
 
-下载的 exe 是不是作者本人发的，一条命令查完。把 `AquaDesk-0.6.3.exe`、
-`SHA256SUMS.txt`、`SHA256SUMS.txt.sig` 放同一目录，运行：
+把 Release 里的四个文件放同一目录：
+
+```
+AquaDesk-0.6.3.exe
+SHA256SUMS.txt
+SHA256SUMS.txt.sig
+verify_release.ps1
+```
+
+在那个目录打开 PowerShell（地址栏敲 `powershell` 回车即可），运行：
 
 ```powershell
-.\verify_release.ps1
+powershell -ExecutionPolicy Bypass -File .\verify_release.ps1
 ```
+
+> 加 `-ExecutionPolicy Bypass` 是因为 Windows 默认禁止运行未签名脚本，
+> 直接敲 `.\verify_release.ps1` 会报「在此系统上禁止运行脚本」——那是系统策略，不是脚本有问题。
+> 若提示文件被阻止，先跑 `Unblock-File .\verify_release.ps1`。
 
 它依次检查三件事：
 

@@ -11,11 +11,19 @@
 
 [CmdletBinding()]
 param(
-    [string]$Dir = $PSScriptRoot,
+    [string]$Dir = "",
     [string]$ExePath = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+# $PSScriptRoot 不能写在 param 默认值里：用 `powershell -File xxx.ps1` 调用时，
+# 求默认值那一刻它还没赋值，$Dir 会变成空字符串，随后报
+# 「无法将参数绑定到参数 LiteralPath，因为该参数为空字符串」。
+# 放到脚本体里再兜底，脚本放哪、怎么调用都能跑。
+if ([string]::IsNullOrWhiteSpace($Dir)) {
+    $Dir = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+}
 
 # 这张指纹必须与 README「验证作者身份」一节里写的一致。
 # 它是整条信任链的锚点：指纹对上 = 用的是同一把私钥 = 同一个发布者。
