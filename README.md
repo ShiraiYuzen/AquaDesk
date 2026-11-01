@@ -3,7 +3,7 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.6.2** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.6.3** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
 ![Build](https://github.com/ShiraiYuzen/AquaDesk/actions/workflows/build.yml/badge.svg)
@@ -58,6 +58,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.6.0](versions/v0.6.0/README.md) | 2026-11-01 | 窗口预览按应用合并 | 角标、窗口列表、关闭所有窗口（吸收原 0.4.20+0.4.21） |
 | [v0.6.1](versions/v0.6.1/README.md) | 2026-11-01 | 安全加固 | 缩略图隐私边界、预览只显示图标、Release 附 SHA256 |
 | [v0.6.2](versions/v0.6.2/README.md) | 2026-11-01 | 签名与崩溃恢复 | Authenticode 自签名 + 时间戳、崩溃/强杀后任务栏自愈、`--restore` 实装 |
+| [v0.6.3](versions/v0.6.3/README.md) | 2026-11-01 | 可验证的作者身份 | 发布清单签名（`.sig`）、一条命令验签 `verify_release.ps1`、指纹作为信任锚点 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -81,6 +82,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.6.0 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.0/src/`） |
 | v0.6.1 | ✓ 见 Releases（附 `SHA256SUMS.txt`） | ✓ 完整源码（`versions/v0.6.1/src/`） |
 | v0.6.2 | ✓ 见 Releases（附 `SHA256SUMS.txt` + `.cer`） | ✓ 完整源码（`versions/v0.6.2/src/`） |
+| v0.6.3 | ✓ 见 Releases（附 `SHA256SUMS.txt` + `.sig` + `SIGNING.txt` + 验签脚本） | ✓ 完整源码（`versions/v0.6.3/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -95,48 +97,73 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 到 [Releases](../../releases) 下载 `AquaDesk-<版本>.exe`，双击即可。
 单文件自包含，不需要安装 .NET。想直接用最新版就挑最新的那个 Release。
 
-### 校验下载的文件（建议）
+### 验证作者身份（推荐）
 
-exe 没有代码签名，所以每个 Release 都附了 `SHA256SUMS.txt`。下载后核对一下，
-能确认文件在传输途中没被篡改：
+下载的 exe 是不是作者本人发的，一条命令查完。把 `AquaDesk-0.6.3.exe`、
+`SHA256SUMS.txt`、`SHA256SUMS.txt.sig` 放同一目录，运行：
 
 ```powershell
-# Windows PowerShell —— 先记下 SHA256SUMS.txt 里那串哈希
-Get-FileHash .\AquaDesk-0.6.1.exe -Algorithm SHA256 | Format-List
+.\verify_release.ps1
+```
+
+它依次检查三件事：
+
+| # | 检查 | 挡住什么 |
+|---|---|---|
+| 1 | exe 的 SHA256 与 `SHA256SUMS.txt` 一致 | 传输损坏、文件被替换 |
+| 2 | exe 的签名证书指纹 = `BF1DDC33…390F` | 别人拿自己的证书重新签一遍 |
+| 3 | `SHA256SUMS.txt` 的签名有效 | 换掉 exe 后顺手把哈希一起改了 |
+
+三项全过会打印「通过：文件出自 CN=ShiraiYuzen (AquaDesk) 这把私钥」。
+
+**信任的锚点是这串指纹**：
+
+```
+BF1DDC33C869D5C08E4417777F88E7041692390F
+```
+
+它写在本 README 里，而本 README 由仓库的提交历史保护 —— 只要这串指纹没变，
+无论从哪个镜像下载，核对得上就是同一个人发的。
+
+#### 手动验证（不想跑脚本也可以）
+
+```powershell
+# 1. 哈希：和 SHA256SUMS.txt 里那一行对比
+Get-FileHash .\AquaDesk-0.6.3.exe -Algorithm SHA256 | Format-List
+
+# 2. 指纹：应等于上面那串
+(Get-AuthenticodeSignature .\AquaDesk-0.6.3.exe).SignerCertificate.Thumbprint
 ```
 
 ```bash
-# Linux / macOS —— 和 exe 放同一目录，直接校验
+# Linux / macOS：和 exe 放同一目录
 sha256sum -c SHA256SUMS.txt
 ```
 
-两边的哈希对得上就没问题；对不上说明文件被改过，别运行。
+#### 关于这张证书
 
-### 校验签名
+`certs/AquaDesk-CodeSigning.cer`，**自签名**，10 年期（至 2036-11-01），
+与清单签名共用同一张。所以要知道它证明什么、不证明什么：
 
-0.6.2 起 exe 带 Authenticode 签名（SHA256 + 时间戳），用的是一张**自签名**证书
-（`certs/AquaDesk-CodeSigning.cer`，指纹 `BF1DDC33C869D5C08E4417777F88E7041692390F`）：
+| 能证明 | 不能证明 |
+|---|---|
+| 文件出自这把私钥，指纹与 README 一致 | 微软/CA 认可这个发布者 |
+| 清单没被改过（改了签名就失效） | SmartScreen 不弹「未知发布者」 |
 
-```powershell
-Get-AuthenticodeSignature .\AquaDesk-0.6.2.exe | Format-List Status, StatusMessage, SignerCertificate
-```
+`Get-AuthenticodeSignature` 的 `Status` 会显示「证书链终止于不受信任的根」，
+这是自签名的正常结果，**不是签名坏了**。
 
-看到 `SignerCertificate` 的主题是 `CN=ShiraiYuzen (AquaDesk)` 且指纹一致，说明文件出自同一把私钥。
-
-自签名证书默认不被 Windows 信任，`Status` 会显示「证书链终止于不受信任的根」—— 这是预期行为，
-**不是**签名坏了。想让它在这台机器上变成可信发布者：
+想让 Windows 在本机认它（可选，只影响你这台机器）：
 
 ```powershell
 .\tools\trust_signing_cert.ps1          # 装入 CurrentUser 的受信任根 + 受信任发布者
 .\tools\trust_signing_cert.ps1 -Remove  # 撤销
 ```
 
-正式证书（SignPath 免费开源签名 / Microsoft Trusted Signing ≈$10/月 / 商业 OV）需要项目方去申请，
-在此之前自签名 + SHA256 是能提供的最强保证。
-
-> 正在申请 SignPath Foundation 的免费开源签名，表单答案、自查清单与 CI 集成
-> 见 [docs/03-代码签名申请.md](docs/03-代码签名申请.md)。通过后 Release 上的 exe
-> 会由 SignPath 的 HSM 密钥签名（发布者显示为 SignPath Foundation）。
+> 想彻底消掉 SmartScreen 警告，只能买 CA 核验过身份的证书（OV/EV，约千元/年）。
+> 免费的开源签名方案 SignPath Foundation 需要项目方提交申请，本项目暂未申请；
+> 材料已备在 [docs/03-代码签名申请.md](docs/03-代码签名申请.md)，随时可提交。
+> 注意即使通过，证书上显示的发布者也是 SignPath Foundation，不是作者本人。
 
 重复启动 = **新版本接管**：双击任意一个 exe，正在跑的旧版本会自动退出、新版本接手。
 所以升级时不用先去托盘里找「退出」。
@@ -177,15 +204,17 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 │  └─ AquaDesk-CodeSigning.cer  签名公钥（自签名，供核对 / 自行信任）
 ├─ tools/
 │  ├─ make_signing_cert.ps1   生成自签名代码签名证书
-│  └─ trust_signing_cert.ps1  把公钥证书装进受信任根（可撤销）
+│  ├─ trust_signing_cert.ps1  把公钥证书装进受信任根（可撤销）
+│  ├─ sign_release.ps1        给 SHA256SUMS.txt 做分离签名（RSA-SHA256）
+│  └─ verify_release.ps1      一条命令验证「这份文件是作者发的」
 ├─ docs/
 │  ├─ 01-产品构想.md          产品定位与功能分层
 │  ├─ 02-架构决策.md          ADR-001~010，改视觉/交互前先读
-│  └─ 03-代码签名申请.md       SignPath Foundation 申请材料与 CI 集成说明
+│  └─ 03-代码签名申请.md       SignPath Foundation 申请材料（暂未提交）
 ├─ .github/workflows/build.yml  CI：构建（并通过 SignPath 签名，若已配置）
 ├─ signpath/
 │  └─ artifact-configuration.xml  签名产物配置（单文件 PE + Authenticode）
-├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.2）
+├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.3）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
@@ -199,7 +228,8 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
    ├─ v0.5.0/
    ├─ v0.6.0/
    ├─ v0.6.1/
-   └─ v0.6.2/
+   ├─ v0.6.2/
+   └─ v0.6.3/
       ├─ src/                该版本的完整源码
       └─ README.md
 ```
@@ -244,8 +274,8 @@ gh release create v0.4.11 \
   代价是鼠标碰底边任务栏会弹一下。
 - **没有抓屏折射**：那种效果要求把自己从屏幕捕获里排除（`WDA_EXCLUDEFROMCAPTURE`），
   代价是用户截图、录屏都拍不到 Dock。和「能截图」互斥，选了后者。
-- **签名是自签名的**：能验证完整性与发布者一致性，但不被 Windows 默认信任，
-  SmartScreen 仍会拦。正式证书的成本与路径见上文「校验签名」。
+- **签名是自签名的**：能验证「文件出自哪把私钥」且指纹公布在本仓库，但不被 Windows 默认信任，
+  SmartScreen 仍会拦。正式证书的成本与路径见上文「验证作者身份」。
 - **硬杀恢复靠下次启动**：`taskkill /F` 时进程内代码跑不到，只能靠标记文件在下次启动时自愈；
   想「进程一死立刻还原」得常驻第二个进程，不值得。
 
