@@ -84,6 +84,48 @@ Get-ChildItem $outDir -Filter "AquaDesk-*.exe" -File -ErrorAction SilentlyContin
 
 Copy-Item -LiteralPath $exe -Destination $target -Force
 
+# 签名：用本机的 AquaDesk 自签名证书（tools\make_signing_cert.ps1 生成）。
+# 找不到证书就跳过，不阻断打包 —— 从源码构建的人也应该能出包。
+# 注意顺序：签名会改字节，SHA256 必须在签名之后算。
+$signCert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert -ErrorAction SilentlyContinue |
+    Where-Object { $_.Subject -like "*AquaDesk*" } |
+    Sort-Object NotAfter -Descending |
+    Select-Object -First 1
+
+if ($signCert) {
+    $signed = $null
+
+    try {
+        $signed = Set-AuthenticodeSignature -LiteralPath $target -Certificate $signCert `
+            -TimestampServer "http://timestamp.digicert.com" -HashAlgorithm SHA256
+    }
+    catch {
+        # 时间戳服务器连不上就退一步：不带时间戳签（当下仍有效，证书过期后签名随之失效）
+        $signed = $null
+    }
+
+    if ($null -eq $signed) {
+        try {
+            $signed = Set-AuthenticodeSignature -LiteralPath $target -Certificate $signCert -HashAlgorithm SHA256
+        }
+        catch {
+            $signed = $null
+        }
+    }
+
+    if ($signed) {
+        # 自签名证书默认不受信，Status 会是 NotTrusted / UnknownError —— 那是预期的，
+        # 签名本身已经生效，用户导入公钥证书后就会变成 Valid。
+        Write-Host "  签名  $($signed.Status)  $($signCert.Thumbprint)" -ForegroundColor DarkGray
+    }
+    else {
+        Write-Host "  签名  失败（不影响产物）" -ForegroundColor Yellow
+    }
+}
+else {
+    Write-Host "  签名  跳过（未找到签名证书；跑 tools\make_signing_cert.ps1 生成）" -ForegroundColor DarkGray
+}
+
 # 校验和：Release 上只有 exe 没法验证来源，附一份 SHA256 清单（sha256sum 兼容格式）供用户核对
 $hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
 $sums = Join-Path $outDir "SHA256SUMS.txt"

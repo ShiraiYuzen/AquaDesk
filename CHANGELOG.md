@@ -6,6 +6,32 @@
 
 ---
 
+## [0.6.2] - 2026-11-01
+
+### 新增
+
+- **代码签名链路**。`tools/make_signing_cert.ps1` 生成本项目专用的自签名代码签名证书
+  （10 年期，私钥不可导出），公钥随仓库分发 `certs/AquaDesk-CodeSigning.cer`；
+  `build.ps1` 打包后自动签名（SHA256 + DigiCert 时间戳），找不到证书则跳过。
+  顺序修正：**先签名再算 SHA256** —— 签名会改字节，反过来算的校验和一定是错的。
+- `tools/trust_signing_cert.ps1`：把公钥证书装进 `CurrentUser` 的受信任根 / 受信任发布者
+  （`-Remove` 可撤销），之后本机验证签名即为 `Valid`。
+
+### 修复
+
+- **崩溃 / 强杀后任务栏留在隐藏态**。以前只有 `OnExit` 会还原，进程被异常终止时
+  用户会卡在「没有任务栏」的桌面。现在：
+  - `DispatcherUnhandledException` / `AppDomain.UnhandledException` / `SessionEnding` /
+    `ProcessExit` 四条路径都先还原系统状态再走；
+  - 隐藏任务栏时写标记文件 `taskbar-hidden.marker`，正常恢复时删除；**被 `taskkill /F`
+    或蓝屏打断时标记会留下**，下次启动发现标记就先恢复任务栏，再按设置重新应用；
+  - `--restore` 参数实装（此前 README 里写了但没实现）：恢复任务栏 + 桌面图标后退出，
+    用于桌面已经坏掉、程序又起不来的情况。
+- 桌面图标**故意不在崩溃时自动还原**：它是用户的持久设置，崩溃时强行显示会被启动逻辑
+  回写成「关」，等于悄悄改掉用户选择；要恢复走 `--restore`。
+
+---
+
 ## [0.6.1] - 2026-11-01
 
 ### 安全加固

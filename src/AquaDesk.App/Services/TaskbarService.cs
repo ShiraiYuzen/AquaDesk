@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using AquaDesk.Core;
@@ -22,6 +23,57 @@ public static class TaskbarService
 {
     private static DispatcherTimer? _guard;
 
+    /// <summary>
+    /// 「任务栏是我藏起来的，还没还」的标记文件。
+    ///
+    /// 正常退出会在 OnExit / 崩溃处理里删掉它；进程被强杀（taskkill /F、蓝屏）时删不掉，
+    /// 标记就留到下次启动 —— 那时候一看就知道「上次没收拾干净」，先把任务栏还回去。
+    /// 没有常驻看门狗的情况下，这是唯一能跨进程闭环的恢复线索。
+    /// </summary>
+    private static string MarkerPath =>
+        Path.Combine(SettingsStore.RootDirectory, "taskbar-hidden.marker");
+
+    /// <summary>上次是不是异常退出、把任务栏留在了隐藏态。</summary>
+    public static bool HasStaleMarker()
+    {
+        try
+        {
+            return File.Exists(MarkerPath);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>清掉标记（任务栏已恢复 / 主动放弃隐藏时调用）。</summary>
+    public static void ClearMarker()
+    {
+        try
+        {
+            if (File.Exists(MarkerPath)) File.Delete(MarkerPath);
+        }
+        catch
+        {
+            // 删不掉不影响功能，下次启动顶多多恢复一次任务栏
+        }
+    }
+
+    private static void WriteMarker()
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(MarkerPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            File.WriteAllText(MarkerPath, $"{Environment.ProcessId} {DateTime.Now:O}");
+        }
+        catch
+        {
+            // 写不了标记时降级为「只能靠正常退出路径恢复」
+        }
+    }
+
     public static bool IsVisible()
     {
         var taskbar = NativeMethods.FindWindowW("Shell_TrayWnd", null);
@@ -38,6 +90,7 @@ public static class TaskbarService
             if (visible)
             {
                 StopGuard();
+                ClearMarker();
 
                 // 关键顺序：先 SW_SHOW 让窗口「可见」，再 ABM_SETSTATE(ALWAYSONTOP)
                 // 清掉自动隐藏位。
@@ -66,6 +119,9 @@ public static class TaskbarService
                 SetState(taskbar, NativeMethods.ABS_AUTOHIDE);
                 NativeMethods.ShowWindow(taskbar, NativeMethods.SW_HIDE);
                 StartGuard();
+
+                // 落标记：进程要是被强杀，下次启动靠它把任务栏捡回来
+                WriteMarker();
             }
 
             App.Log($"任务栏：visible={visible} 自动隐藏={IsAutoHide(taskbar)}", null);
