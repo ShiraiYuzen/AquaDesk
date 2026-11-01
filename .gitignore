@@ -10,6 +10,12 @@ publish/
 *.zip
 *.7z
 
+# 签名私钥绝不能进仓库（公钥 .cer / .asc 才要提交）
+certs/private/
+*.key
+*.p12
+*.pfx
+
 # 打包临时目录
 adpub-*/
 _pub-*/

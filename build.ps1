@@ -132,6 +132,22 @@ $sums = Join-Path $outDir "SHA256SUMS.txt"
 "$hash  $([System.IO.Path]::GetFileName($target))" | Set-Content -LiteralPath $sums -Encoding ASCII
 Write-Host "  校验  dist\SHA256SUMS.txt  $hash" -ForegroundColor DarkGray
 
+# 清单签名：光有哈希挡不住「换 exe + 顺手改哈希」，让私钥把清单本身也签一遍。
+# 与 exe 的 Authenticode 签名共用同一张证书，用户核对一个指纹即可串起整条链。
+try {
+    & (Join-Path $PSScriptRoot "tools\sign_release.ps1") -DistDir $outDir
+}
+catch {
+    Write-Host "  清单签名 失败（不影响产物）" -ForegroundColor Yellow
+}
+
+# 验签脚本随产物一起发：用户不用clone仓库，下 Release 就能自己验
+$verifyScript = Join-Path $PSScriptRoot "tools\verify_release.ps1"
+if (Test-Path -LiteralPath $verifyScript) {
+    Copy-Item -LiteralPath $verifyScript -Destination (Join-Path $outDir "verify_release.ps1") -Force
+    Write-Host "  分发  dist\verify_release.ps1" -ForegroundColor DarkGray
+}
+
 # 发布目录只是中转站，留着白占 63MB
 Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
 
