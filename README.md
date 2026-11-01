@@ -3,7 +3,7 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.6.3** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.6.4** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
 ![Build](https://github.com/ShiraiYuzen/AquaDesk/actions/workflows/build.yml/badge.svg)
@@ -59,6 +59,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.6.1](versions/v0.6.1/README.md) | 2026-11-01 | 安全加固 | 缩略图隐私边界、预览只显示图标、Release 附 SHA256 |
 | [v0.6.2](versions/v0.6.2/README.md) | 2026-11-01 | 签名与崩溃恢复 | Authenticode 自签名 + 时间戳、崩溃/强杀后任务栏自愈、`--restore` 实装 |
 | [v0.6.3](versions/v0.6.3/README.md) | 2026-11-01 | 可验证的作者身份 | 发布清单签名（`.sig`）、一条命令验签 `verify_release.ps1`、指纹作为信任锚点 |
+| [v0.6.4](versions/v0.6.4/README.md) | 2026-11-01 | 签名私钥可备份 | 换用可导出证书并离线备份 `.pfx`；验签脚本支持两代指纹白名单 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -83,6 +84,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.6.1 | ✓ 见 Releases（附 `SHA256SUMS.txt`） | ✓ 完整源码（`versions/v0.6.1/src/`） |
 | v0.6.2 | ✓ 见 Releases（附 `SHA256SUMS.txt` + `.cer`） | ✓ 完整源码（`versions/v0.6.2/src/`） |
 | v0.6.3 | ✓ 见 Releases（附 `SHA256SUMS.txt` + `.sig` + `SIGNING.txt` + 验签脚本） | ✓ 完整源码（`versions/v0.6.3/src/`） |
+| v0.6.4 | ✓ 见 Releases（同上，指纹换为 `62DF52A9…`） | ✓ 完整源码（`versions/v0.6.4/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -102,7 +104,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 把 Release 里的四个文件放同一目录：
 
 ```
-AquaDesk-0.6.3.exe
+AquaDesk-0.6.4.exe
 SHA256SUMS.txt
 SHA256SUMS.txt.sig
 verify_release.ps1
@@ -123,28 +125,33 @@ powershell -ExecutionPolicy Bypass -File .\verify_release.ps1
 | # | 检查 | 挡住什么 |
 |---|---|---|
 | 1 | exe 的 SHA256 与 `SHA256SUMS.txt` 一致 | 传输损坏、文件被替换 |
-| 2 | exe 的签名证书指纹 = `BF1DDC33…390F` | 别人拿自己的证书重新签一遍 |
+| 2 | exe 的签名证书指纹在可信列表内 | 别人拿自己的证书重新签一遍 |
 | 3 | `SHA256SUMS.txt` 的签名有效 | 换掉 exe 后顺手把哈希一起改了 |
 
 三项全过会打印「通过：文件出自 CN=ShiraiYuzen (AquaDesk) 这把私钥」。
 
-**信任的锚点是这串指纹**：
+**信任的锚点是这些指纹**（证书换过一次代，两代都可信）：
 
 ```
-BF1DDC33C869D5C08E4417777F88E7041692390F
+62DF52A960B467FE81D1B471A08A8447A86FFA5B    ← v0.6.4 起
+BF1DDC33C869D5C08E4417777F88E7041692390F    ← v0.6.2 ~ v0.6.3
 ```
 
-它写在本 README 里，而本 README 由仓库的提交历史保护 —— 只要这串指纹没变，
+它们写在本 README 里，而本 README 由仓库的提交历史保护 —— 只要列表没变，
 无论从哪个镜像下载，核对得上就是同一个人发的。
+
+> **为什么有两代**：v0.6.3 及之前那张证书把私钥设成了「不可导出」——防偷，但也备份不了，
+> 机器一旦损坏指纹就永久作废，锚点跟着断。v0.6.4 换成可导出的证书并离线备份了私钥，
+> 所以从这版起指纹是 `62DF52A9…`。历史版本的包仍用旧指纹验证，脚本里做了白名单。
 
 #### 手动验证（不想跑脚本也可以）
 
 ```powershell
 # 1. 哈希：和 SHA256SUMS.txt 里那一行对比
-Get-FileHash .\AquaDesk-0.6.3.exe -Algorithm SHA256 | Format-List
+Get-FileHash .\AquaDesk-0.6.4.exe -Algorithm SHA256 | Format-List
 
 # 2. 指纹：应等于上面那串
-(Get-AuthenticodeSignature .\AquaDesk-0.6.3.exe).SignerCertificate.Thumbprint
+(Get-AuthenticodeSignature .\AquaDesk-0.6.4.exe).SignerCertificate.Thumbprint
 ```
 
 ```bash
@@ -226,7 +233,7 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 ├─ .github/workflows/build.yml  CI：构建（并通过 SignPath 签名，若已配置）
 ├─ signpath/
 │  └─ artifact-configuration.xml  签名产物配置（单文件 PE + Authenticode）
-├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.3）
+├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.4）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
@@ -241,7 +248,8 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
    ├─ v0.6.0/
    ├─ v0.6.1/
    ├─ v0.6.2/
-   └─ v0.6.3/
+   ├─ v0.6.3/
+   └─ v0.6.4/
       ├─ src/                该版本的完整源码
       └─ README.md
 ```
