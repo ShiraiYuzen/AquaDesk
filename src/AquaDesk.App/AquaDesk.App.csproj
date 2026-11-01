@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <!-- 方案2：.NET Framework 4.8（系统自带、进程间共享），不再自包含打包运行时 -->
+    <TargetFramework>net48</TargetFramework>
+    <RootNamespace>AquaDesk</RootNamespace>
+    <AssemblyName>AquaDesk</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <!-- 托盘图标用 WinForms 的 NotifyIcon，比手搓 Shell_NotifyIcon 省事 -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+
+    <!-- 版本号 0.4.12：显示用 0.4.12，程序集/文件版本必须是纯数字四段，取 0.4.12.0 -->
+    <Version>0.6.0</Version>
+    <AssemblyVersion>0.4.12.0</AssemblyVersion>
+    <FileVersion>0.4.12.0</FileVersion>
+    <InformationalVersion>0.6.0-net48-exp</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+
+    <Product>AquaDesk</Product>
+    <AssemblyTitle>AquaDesk 水光桌面</AssemblyTitle>
+    <Company>AquaDesk</Company>
+    <ApplicationIcon>Assets\AquaDesk.ico</ApplicationIcon>
+    <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
+    <DebugType>none</DebugType>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 开了 UseWindowsForms 后 SDK 会把 System.Drawing / System.Windows.Forms 塞进隐式 using，
+         跟 WPF 的 Color / Point / MouseEventArgs 全面撞名，这里去掉，需要的地方显式 using -->
+    <Using Remove="System.Drawing" />
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 设置页标题栏也要用这个图标，所以额外打包成 WPF 资源 -->
+    <Resource Include="Assets\AquaDesk.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinRT 元数据：仅编译期引用，运行时由操作系统提供（蓝牙/媒体会话/WiFi 走的是它） -->
+    <PackageReference Include="Microsoft.Windows.SDK.Contracts" Version="10.0.19041.1" PrivateAssets="All" />
+    <!-- net48 引用程序集（让 dotnet build 能找到框架） -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+    <!-- net48 BCL 不含 System.Text.Json，需显式引包 -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <!-- net48 下 HttpClient 所在程序集默认不自动引用 -->
+    <Reference Include="System.Net.Http" />
+    <!-- 源码用到 dynamic（AutoStartService / ShortcutResolver 读 COM 对象），net48 需显式引 Microsoft.CSharp -->
+    <Reference Include="Microsoft.CSharp" />
+  </ItemGroup>
+
+</Project>
