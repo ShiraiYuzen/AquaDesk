@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -11,9 +12,8 @@ namespace AquaDesk.Views;
 /// <summary>
 /// 「检查更新」的结果卡片。
 ///
-/// 有新版时可以下载并安装：下载 → 校验（大小 / SHA256 / 签名指纹）→
-/// 交给 <see cref="UpdateService.ApplyAndRestart"/> 替换并重启。
-/// 任何一步失败都不会动当前安装，只把原因写在进度条那一行，并留一个「打开发布页」。
+/// 有新版时：安装版（VELOPACK）可以「下载并安装」，走 Velopack 框架自动下载 → 应用 →
+/// 重启；便携版不做自动下载，主按钮是「打开发布页」，并在更新说明末尾附 SHA256 供手动核对。
 /// </summary>
 public partial class UpdateDialog : Window
 {
@@ -67,14 +67,25 @@ public partial class UpdateDialog : Window
                 SubtitleText.Text = $"当前 {UpdateService.CurrentVersionText} → 最新 {result.Info.Version}";
 
                 RenderNotes(NotesText, result.Info.Notes);
+#if !VELOPACK
+                AppendChecksum(NotesText, result.Info);
+#endif
 
                 NotesBox.Visibility = Visibility.Visible;
-                UpdateButton.Visibility = Visibility.Visible;
                 SkipCheck.Visibility = Visibility.Visible;
                 CancelButton.Content = "稍后";
 
                 // 已经跳过过的版本，把勾选状态亮出来，省得用户以为没记住
                 SkipCheck.IsChecked = UpdateService.IsSkipped(result.Info.Version);
+
+#if VELOPACK
+                // 安装版：框架自动更新，主按钮是「下载并安装」
+                UpdateButton.Visibility = Visibility.Visible;
+#else
+                // 便携版：不自动下载，主按钮改成「打开发布页」，让用户去网页手动下载
+                PageButton.Visibility = Visibility.Visible;
+                PageButton.Content = "打开发布页下载";
+#endif
 
                 Title = $"发现新版本 {result.Info.Version}";
                 break;
@@ -278,6 +289,46 @@ public partial class UpdateDialog : Window
         }
     }
 
+#if !VELOPACK
+    /// <summary>
+    /// 便携版不做自动下载，把发布 exe 的 SHA256 贴在更新说明末尾，供手动下载后核对。
+    /// GitHub 会给每个 asset 一个 digest（sha256:…），这里直接取来展示。
+    /// </summary>
+    private static void AppendChecksum(TextBlock block, UpdateInfo info)
+    {
+        if (string.IsNullOrWhiteSpace(info.Digest)
+            || !info.Digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var hash = info.Digest["sha256:".Length..].Trim();
+        var fileName = string.IsNullOrWhiteSpace(info.DownloadUrl)
+            ? $"AquaDesk-{info.Version}.exe"
+            : Path.GetFileName(new Uri(info.DownloadUrl).LocalPath);
+
+        block.Inlines.Add(new LineBreak());
+        block.Inlines.Add(new LineBreak());
+        block.Inlines.Add(new Run("校验（可选）")
+        {
+            FontWeight = FontWeights.SemiBold,
+            FontSize = 12.5,
+        });
+        block.Inlines.Add(new LineBreak());
+        block.Inlines.Add(new Run("SHA256  " + hash)
+        {
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 11,
+        });
+        block.Inlines.Add(new LineBreak());
+        block.Inlines.Add(new Run("文件    " + fileName)
+        {
+            FontFamily = new FontFamily("Consolas"),
+            FontSize = 11,
+        });
+    }
+#endif
+
     private static void OpenLink(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return;
@@ -311,9 +362,18 @@ public partial class UpdateDialog : Window
         }
     }
 
-    /// <summary>下载 → 校验 → 安排替换重启。中途失败只改这一行的提示，不动窗口结构。</summary>
+    /// <summary>
+    /// 「下载并安装」按钮。仅安装版（VELOPACK）走下载 → 应用 → 重启；
+    /// 便携版不做自动下载，主按钮是「打开发布页」，这里只兜底打开发布页。
+    /// </summary>
     private async void OnUpdate(object sender, RoutedEventArgs e)
     {
+#if !VELOPACK
+        // 便携版：主按钮是「打开发布页」，这里理论上不会被点到。
+        // 万一走到（比如以后又放开按钮），直接打开发布页兜底。
+        OpenPage();
+        await Task.CompletedTask;
+#else
         if (_busy || _result.Info is null) return;
 
         _busy = true;
@@ -331,31 +391,18 @@ public partial class UpdateDialog : Window
         {
             DownloadBar.Value = value;
             ProgressPercent.Text = $"{value * 100:F0}%";
-            if (value >= 1) ProgressLabel.Text = "正在校验签名…";
         });
 
-        var (package, error) = await UpdateService.DownloadAsync(_result.Info, progress, _cancel.Token);
+        var error = await UpdateService.DownloadAndApplyAsync(_result.Info, progress);
 
-        if (package is null)
+        if (error is not null)
         {
             ShowFailure(error);
             return;
         }
 
-        ProgressLabel.Text = "校验通过，正在重启…";
-        ProgressPercent.Text = "100%";
-
-        if (!UpdateService.ApplyAndRestart(package))
-        {
-            ShowFailure("替换当前程序失败，可以打开发布页手动下载");
-            return;
-        }
-
-        // 给 PowerShell 一点时间把自己挂到「等待本进程退出」上
-        CancelButton.IsEnabled = false;
-        await Task.Delay(500);
-
-        Application.Current.Shutdown();
+        // Velopack 版：ApplyUpdatesAndRestart 已在后台退出并重启，正常不会走到这里。
+#endif
     }
 
     private void ShowFailure(string message)

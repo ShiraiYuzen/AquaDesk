@@ -3,13 +3,13 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.7.0** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.7.0** · 两种形态任选：单文件便携版 / Velopack 安装版 · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
 ![Build](https://github.com/ShiraiYuzen/AquaDesk/actions/workflows/build.yml/badge.svg)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
 ![.NET](https://img.shields.io/badge/.NET-8%20%2B%20WPF-512BD4)
-![Size](https://img.shields.io/badge/single--file%20exe-69.6%20MB-informational)
+![Size](https://img.shields.io/badge/exe-~70%20MB-informational)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
@@ -65,7 +65,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.6.7](versions/v0.6.7/README.md) | 2026-11-01 | 下架液态玻璃 | 系统图标纯白简约、界面风格只剩两种 |
 | [v0.6.8](versions/v0.6.8/README.md) | 2026-11-01 | 预览上限 6 格 | 预览区最多 6 个应用，第 7 个起折叠 |
 | [v0.6.9](versions/v0.6.9/README.md) | 2026-11-02 | 输入法全列出 | 讯飞/微信/微软拼音全显示，同语言直切 |
-| [v0.7.0](versions/v0.7.0/README.md) | 2026-11-02 | 检查更新 | 一键下载安装、验签、跳过版本、静默检查 |
+| [v0.7.0](versions/v0.7.0/README.md) | 2026-11-02 | 检查更新 + 双产物 | 便携版提示更新 / 安装版一键升级；图形化安装引导器、卸载 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -96,7 +96,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.6.7 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.7/src/`） |
 | v0.6.8 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.8/src/`） |
 | v0.6.9 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.9/src/`） |
-| v0.7.0 | ✓ 见 Releases（附验签四件套 + `.cer`） | ✓ 完整源码（`versions/v0.7.0/src/`） |
+| v0.7.0 | ✓ 见 Releases（便携版 exe + 验签四件套 + `.cer` + 安装版 Setup/引导器/nupkg） | ✓ 完整源码（`versions/v0.7.0/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -108,8 +108,15 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 ### 直接运行
 
-到 [Releases](../../releases) 下载 `AquaDesk-<版本>.exe`，双击即可。
-单文件自包含，不需要安装 .NET。想直接用最新版就挑最新的那个 Release。
+到 [Releases](../../releases) 下载，两种形态二选一：
+
+| 产物 | 适合谁 | 说明 |
+| --- | --- | --- |
+| `AquaDesk-<版本>.exe` | 绿色软件党 / 极客 | 单文件自包含，放哪都能跑，不装 .NET；检查更新时提示内容 + 一键打开发布页手动下载 |
+| `AquaDesk-<版本>-Setup.zip` | 普通用户 | 解压后运行 `AquaDesk.Installer.exe`，弹框选安装目录，装完自动更新交给 Velopack 框架 |
+
+想直接要「装好就能自动更新」的，下安装版；想要「一个 exe 走天下、手动掌控更新」的，下便携版。
+两个都带同一个自签证书（指纹 `62DF52A9…`）。
 
 ### 验证作者身份（推荐）
 
@@ -206,10 +213,12 @@ sha256sum -c SHA256SUMS.txt
 ```powershell
 # 修改 csproj 里的 Version / AssemblyVersion / FileVersion / InformationalVersion
 # 注意：AssemblyVersion 与 FileVersion 必须是纯数字四段（0.3.3 → 0.3.3.0）
-.\build.ps1
+.\build.ps1             # 只出便携版（单文件 exe）
+.\build.ps1 -Velopack   # 便携版 + Velopack 安装版 + 安装引导器，一次全出
 ```
 
-产物在 `dist\AquaDesk-<版本>.exe`，旧版本自动归档到 `releases\`。
+产物：便携版在 `dist\AquaDesk-<版本>.exe`，安装版在 `dist\velopack\`（Setup.exe / Portable.zip / nupkg / 更新清单），
+旧版本自动归档到 `releases\`。
 
 > `build.ps1 -Version x.y.z` 也会顺手改版本号，但它用 `Set-Content` 覆写 csproj，
 > 在受限环境里可能被安全策略拦下 —— 手动改 csproj 再跑无参脚本最稳。
@@ -246,6 +255,7 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 ├─ signpath/
 │  └─ artifact-configuration.xml  签名产物配置（单文件 PE + Authenticode）
 ├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.7.0）
+├─ src/AquaDesk.Installer/    图形化安装引导器（选目录 → 调 Setup.exe --installto）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
@@ -296,10 +306,11 @@ gh release create v0.4.11 \
 
 | 层 | 选择 | 理由 |
 | --- | --- | --- |
-| 运行时 | .NET 8 + WPF | 单文件发布 69.5 MB，目标机器零依赖 |
+| 运行时 | .NET 8 + WPF | 便携版单文件约 70 MB，目标机器零依赖 |
 | 玻璃 | 自绘八层 | 抓屏折射已停用 —— 它会让自己在任何截图里消失 |
 | 系统集成 | Win32 P/Invoke + WinRT | 任务栏、AppBar、Radio Manager 都要原生 |
 | 图标 | Shell ImageList + 像素分析 | 避免每次取图驻留 240KB |
+| 安装 / 更新（安装版） | Velopack | delta 更新、下载校验、失败回滚，签名沿用同一张自签证书 |
 
 ### 已知取舍
 

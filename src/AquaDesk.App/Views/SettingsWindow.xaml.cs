@@ -24,6 +24,11 @@ public partial class SettingsWindow : Window
 
         FillAbout();
 
+#if VELOPACK
+        // 安装版才显示「打开安装目录 / 卸载」；便携版没有安装目录，整块隐藏
+        InstallOnlySection.Visibility = Visibility.Visible;
+#endif
+
         // 任何一项改动都把「保存」按钮亮出来（改动本身是实时生效的，这里只管写盘）
         _settings.PropertyChanged += OnAnySettingChanged;
         Closing += OnWindowClosing;
@@ -235,6 +240,78 @@ public partial class SettingsWindow : Window
 
     private void OnOpenLogFolder(object sender, RoutedEventArgs e) =>
         OpenFolder(Path.GetTempPath());
+
+    /// <summary>打开安装根目录（%LocalAppData%\AquaDesk 或自定义 --installto 的位置）。</summary>
+    private void OnOpenInstallFolder(object sender, RoutedEventArgs e)
+    {
+        var root = Velopack.Locators.VelopackLocator.Current.RootAppDir;
+
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
+        {
+            root = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk");
+        }
+
+        OpenFolder(root);
+    }
+
+    /// <summary>
+    /// 卸载：删配置目录 + 调 Update.exe --uninstall（删安装目录 / 快捷方式 / 注册表卸载项）。
+    /// Velopack 自带的卸载不碰 %AppData%（Roaming）里的配置，所以配置要在这里单独删。
+    /// </summary>
+    private void OnUninstall(object sender, RoutedEventArgs e)
+    {
+        var confirm = MessageBox.Show(
+            "卸载将删除 AquaDesk 程序本体、快捷方式，以及所有配置数据\n" +
+            "（settings.json、dock.json、launchpad.json 等）。\n\n" +
+            "此操作不可恢复，确定卸载吗？",
+            "卸载 AquaDesk",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        // 1) 先删配置目录（进程还活着，删得掉）。失败不阻塞卸载，残留可手动清理。
+        try
+        {
+            var config = SettingsStore.RootDirectory;
+            if (Directory.Exists(config)) Directory.Delete(config, recursive: true);
+        }
+        catch (Exception ex)
+        {
+            App.Log("卸载：删除配置目录失败", ex);
+        }
+
+        // 2) 调 Update.exe --uninstall：删安装目录 + 快捷方式 + 注册表卸载项，并结束本进程。
+        try
+        {
+            var update = Velopack.Locators.VelopackLocator.Current.UpdateExePath;
+
+            if (string.IsNullOrWhiteSpace(update) || !File.Exists(update))
+            {
+                // 兜底：找不到 Update.exe（异常安装），直接删安装目录再退出
+                var root = Velopack.Locators.VelopackLocator.Current.RootAppDir;
+                if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
+                    Directory.Delete(root, recursive: true);
+
+                Application.Current.Shutdown();
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo(update, "--uninstall")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            App.Log("卸载：调用卸载失败", ex);
+            MessageBox.Show(
+                "卸载失败，请从「设置 → 应用 → 已安装的应用」里卸载 AquaDesk。",
+                "卸载", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
 
     private static void OpenFolder(string path)
     {
