@@ -1,11 +1,11 @@
-using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+#if VELOPACK
+using Velopack;
+#endif
 
 namespace AquaDesk.Services;
 
@@ -37,23 +37,16 @@ public sealed record UpdateCheckResult(
     string Message,
     string? Diagnostics = null);
 
-/// <summary>下载完成、校验通过的安装包。</summary>
-public sealed record UpdatePackage(string Path, long Size);
-
 /// <summary>
 /// 检查 / 下载 / 应用更新。
 ///
 /// 版本号用 csproj 里的 <c>InformationalVersion</c>（0.7.0 这种），不是
 /// <c>AssemblyVersion</c>（那个是给 Win32 文件版本用的，一直没跟着发版改）。
 ///
-/// 三道防线，缺一不可：
-/// 1. **多源**：GitHub API 在国内时通时不通，失败就换镜像前缀再试。
-/// 2. **验签**：下载下来的 exe 必须带我们这把证书的 Authenticode 签名
-///    （指纹见 <see cref="PublisherThumbprint"/>），有 SHA256 摘要就一起比对。
-///    只信 API 返回的链接是不够的 —— 镜像被投毒一样会把假 exe 装上。
-/// 3. **替换**：运行中的 exe 不能覆盖自己，所以要起一个等进程退出的 PowerShell
-///    去做 copy，再拉起新版本。脚本用 <c>-EncodedCommand</c>（UTF-16 Base64）传，
-///    避开中文路径在批处理里的编码坑。
+/// 两种模式，行为不同：
+/// - 便携版（默认，未定义 VELOPACK）：只检查更新，把新版本说明 + SHA256 展示给
+///   用户，用户自己去发布页手动下载，不自动下载、不自动替换。
+/// - 安装版（定义 VELOPACK）：走 Velopack 框架自动下载 + 应用 + 重启。
 /// </summary>
 public static class UpdateService
 {
@@ -73,8 +66,10 @@ public static class UpdateService
         $"https://gh-proxy.com/https://api.github.com/{ApiPath}",
     };
 
-    /// <summary>发布用的自签证书指纹（和 verify_release.ps1 里那个白名单一致）。</summary>
-    private const string PublisherThumbprint = "62DF52A960B467FE81D1B471A08A8447A86FFA5B";
+#if VELOPACK
+    /// <summary>Velopack 安装版的更新源：GitHub Releases 的 latest download 目录。</summary>
+    private const string VelopackFeedUrl = $"https://github.com/{Owner}/{Repo}/releases/latest/download/";
+#endif
 
     /// <summary>当前版本的可读文本，比如 0.7.0。</summary>
     public static string CurrentVersionText { get; } = ReadInformationalVersion();
@@ -99,6 +94,49 @@ public static class UpdateService
 
     // ---------------- 检查 ----------------
 
+#if VELOPACK
+    /// <summary>Velopack 安装版：直接问 Velopack 更新源有没有新版本。</summary>
+    public static async Task<UpdateCheckResult> CheckAsync()
+    {
+        try
+        {
+            var latest = await CreateManager().CheckForUpdatesAsync().ConfigureAwait(false);
+
+            if (latest is null)
+            {
+                App.Log($"检查更新(Velopack)：本地 {CurrentVersionText}，已是最新", null);
+                return new UpdateCheckResult(UpdateStatus.UpToDate, null, string.Empty);
+            }
+
+            var remoteVersion = latest.TargetFullRelease.Version.ToString();
+
+            var info = new UpdateInfo(
+                remoteVersion,
+                remoteVersion,
+                string.Empty,
+                $"https://github.com/{Owner}/{Repo}/releases/latest",
+                null,
+                null,
+                latest.TargetFullRelease.Size);
+
+            PendingUpdate = info;
+            App.Log($"检查更新(Velopack)：本地 {CurrentVersionText}，远端 {remoteVersion}，有新版", null);
+
+            return new UpdateCheckResult(UpdateStatus.Available, info, string.Empty);
+        }
+        catch (Exception ex)
+        {
+            App.Log("检查更新(Velopack)失败", ex);
+
+            var diagnostics =
+                $"AquaDesk {CurrentVersionText}\n时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                $"系统：{Environment.OSVersion}\n运行时：.NET {Environment.Version}\n\n" +
+                $"Velopack 更新源：{VelopackFeedUrl}\n异常：{ex.Message}";
+
+            return new UpdateCheckResult(UpdateStatus.Failed, null, ex.Message, diagnostics);
+        }
+    }
+#else
     public static async Task<UpdateCheckResult> CheckAsync()
     {
         var errors = new List<string>();
@@ -174,6 +212,7 @@ public static class UpdateService
 
         return new UpdateCheckResult(UpdateStatus.Failed, null, message, BuildDiagnostics(trace));
     }
+#endif
 
     /// <summary>
     /// 拼一段人可读的诊断信息，用户反馈时直接贴过来，不用去翻日志。
@@ -270,196 +309,44 @@ public static class UpdateService
         }
     }
 
-    // ---------------- 下载 + 验签 ----------------
+    // ---------------- 下载 + 应用（统一入口） ----------------
 
     /// <summary>
-    /// 把安装包下载到临时目录并校验。Package 为 null 时 <paramref name="error"/> 里是原因。
+    /// 下载并应用更新，一步到位。返回 null 表示成功；非 null 是错误信息。
+    /// 仅安装版（VELOPACK）会真正下载安装；便携版不自动下载，只返回提示。
     /// </summary>
-    public static async Task<(UpdatePackage? Package, string Error)> DownloadAsync(
-        UpdateInfo info,
-        IProgress<double>? progress,
-        CancellationToken token)
+    public static async Task<string?> DownloadAndApplyAsync(UpdateInfo info, IProgress<double> progress)
     {
-        if (string.IsNullOrWhiteSpace(info.DownloadUrl))
-        {
-            return (null, "这个 release 没有附带 exe，只能去下载页手动取");
-        }
-
-        var directory = Path.Combine(Path.GetTempPath(), "AquaDesk-update");
-        Directory.CreateDirectory(directory);
-
-        var fileName = Path.GetFileName(new Uri(info.DownloadUrl).LocalPath);
-        if (string.IsNullOrWhiteSpace(fileName)) fileName = $"AquaDesk-{info.Version}.exe";
-
-        var target = Path.Combine(directory, fileName);
-
+#if VELOPACK
         try
         {
-            using var response = await Http
-                .GetAsync(info.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, token)
+            var mgr = CreateManager();
+            var latest = await mgr.CheckForUpdatesAsync().ConfigureAwait(false);
+
+            if (latest is null) return "没有可用的更新";
+
+            await mgr.DownloadUpdatesAsync(latest, p => progress.Report(Math.Clamp(p / 100.0, 0, 1)))
                 .ConfigureAwait(false);
 
-            response.EnsureSuccessStatusCode();
-
-            var total = response.Content.Headers.ContentLength ?? info.Size;
-
-            await using (var source = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false))
-            await using (var file = File.Create(target))
-            {
-                var buffer = new byte[81920];
-                long received = 0;
-                int read;
-
-                while ((read = await source.ReadAsync(buffer, token).ConfigureAwait(false)) > 0)
-                {
-                    await file.WriteAsync(buffer.AsMemory(0, read), token).ConfigureAwait(false);
-                    received += read;
-
-                    if (total > 0) progress?.Report(received / (double)total);
-                }
-            }
-
-            progress?.Report(1);
-
-            var length = new FileInfo(target).Length;
-
-            // 1) 大小：对不上说明下载被截断
-            if (info.Size > 0 && length != info.Size)
-            {
-                File.Delete(target);
-                return (null, $"文件大小不符（{length} / {info.Size}），下载可能被中断");
-            }
-
-            // 2) SHA256：GitHub 现在会给 asset 的 digest，有就比对
-            if (!string.IsNullOrWhiteSpace(info.Digest)
-                && info.Digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
-            {
-                var expected = info.Digest["sha256:".Length..].Trim();
-
-                await using var stream = File.OpenRead(target);
-                var actual = Convert.ToHexString(await SHA256.HashDataAsync(stream, token).ConfigureAwait(false));
-
-                if (!string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase))
-                {
-                    File.Delete(target);
-                    return (null, "SHA256 和发布清单对不上，已丢弃");
-                }
-            }
-
-            // 3) Authenticode：必须是发布证书签的
-            var thumbprint = ReadSignerThumbprint(target);
-
-            if (!string.Equals(thumbprint, PublisherThumbprint, StringComparison.OrdinalIgnoreCase))
-            {
-                File.Delete(target);
-
-                return (null, thumbprint.Length == 0
-                    ? "下载的 exe 没有数字签名，已丢弃"
-                    : $"签名证书指纹不符（{thumbprint}），已丢弃");
-            }
-
-            App.Log($"更新：已下载并验签通过 {fileName}（{length / 1024 / 1024} MB）", null);
-
-            return (new UpdatePackage(target, length), string.Empty);
-        }
-        catch (OperationCanceledException)
-        {
-            TryDelete(target);
-            return (null, "下载已取消");
+            mgr.ApplyUpdatesAndRestart(latest);
+            return null; // 实际不会返回：ApplyUpdatesAndRestart 内部退出并重启
         }
         catch (Exception ex)
         {
-            TryDelete(target);
-            App.Log("更新：下载失败", ex);
-            return (null, $"下载失败：{ex.Message}");
+            App.Log("Velopack：下载并应用更新失败", ex);
+            return ex.Message;
         }
+#else
+        // 便携版不再自动下载安装（主按钮已改成「打开发布页」）。
+        // 正常情况下不会被调用到；留一个明确提示兜底。
+        await Task.CompletedTask;
+        return "便携版不自动下载，请打开发布页手动下载";
+#endif
     }
 
-    /// <summary>读文件签名证书的指纹；没签名返回空串。</summary>
-    private static string ReadSignerThumbprint(string path)
-    {
-        try
-        {
-            using var certificate = X509Certificate.CreateFromSignedFile(path);
-            return certificate.GetCertHashString();
-        }
-        catch
-        {
-            // 没签名、或者签名结构损坏，都走这里
-            return string.Empty;
-        }
-    }
-
-    // ---------------- 应用（替换 + 重启） ----------------
-
-    /// <summary>
-    /// 把新版本覆盖到当前 exe 上并重启。
-    ///
-    /// 自己不能覆盖自己，所以起一个隐藏的 PowerShell：等本进程退出 → 重试复制 →
-    /// 拉起新版本。脚本用 -EncodedCommand 传（UTF-16 Base64），中文字符串不会被
-    /// 代码页毁掉 —— 用 .bat 走 chcp 那套在中文路径上很容易翻车。
-    /// </summary>
-    public static bool ApplyAndRestart(UpdatePackage package)
-    {
-        try
-        {
-            var target = Environment.ProcessPath;
-
-            if (string.IsNullOrEmpty(target) || !File.Exists(target))
-            {
-                App.Log("更新：找不到当前 exe 路径，放弃替换", null);
-                return false;
-            }
-
-            var script = $@"
-$ErrorActionPreference = 'SilentlyContinue'
-Wait-Process -Id {Environment.ProcessId} -Timeout 30
-
-for ($i = 0; $i -lt 30; $i++) {{
-    try {{
-        Copy-Item -LiteralPath '{Escape(package.Path)}' -Destination '{Escape(target)}' -Force -ErrorAction Stop
-        break
-    }} catch {{
-        Start-Sleep -Milliseconds 400
-    }}
-}}
-
-Start-Process -FilePath '{Escape(target)}'
-";
-
-            var encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-
-            Process.Start(new ProcessStartInfo("powershell.exe",
-                $"-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -EncodedCommand {encoded}")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            });
-
-            App.Log($"更新：已安排替换并重启（{package.Path} → {target}）", null);
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            App.Log("更新：安排替换失败", ex);
-            return false;
-        }
-    }
-
-    private static string Escape(string value) => value.Replace("'", "''");
-
-    private static void TryDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path)) File.Delete(path);
-        }
-        catch
-        {
-            // 删不掉就留着，下次下载会覆盖
-        }
-    }
+#if VELOPACK
+    private static UpdateManager CreateManager() => new(VelopackFeedUrl);
+#endif
 
     // ---------------- 解析 ----------------
 
@@ -494,16 +381,42 @@ Start-Process -FilePath '{Escape(target)}'
 
             if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
             {
+                string? setupUrl = null;
+                string? setupDigest = null;
+                long setupSize = 0;
+
                 foreach (var asset in assets.EnumerateArray())
                 {
                     var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? string.Empty : string.Empty;
 
                     if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    downloadUrl = asset.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
-                    digest = asset.TryGetProperty("digest", out var g) ? g.GetString() : null;
-                    size = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
-                    break;
+                    var url = asset.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
+                    var dig = asset.TryGetProperty("digest", out var g) ? g.GetString() : null;
+                    var sz = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
+
+                    // 同一个 release 里可能挂多个 exe：便携版 AquaDesk-x.y.z.exe、Velopack 的
+                    // Setup.exe / win-* 包。便携版要的是前者，排除掉 Setup / win- 前缀的。
+                    if (!name.Contains("Setup", StringComparison.OrdinalIgnoreCase)
+                        && !name.Contains("-win-", StringComparison.OrdinalIgnoreCase))
+                    {
+                        downloadUrl = url;
+                        digest = dig;
+                        size = sz;
+                        break;
+                    }
+
+                    setupUrl ??= url;
+                    setupDigest ??= dig;
+                    setupSize = sz;
+                }
+
+                // 兜底：万一只有 Setup.exe（理论上不会），至少别让 digest 空着
+                if (downloadUrl is null)
+                {
+                    downloadUrl = setupUrl;
+                    digest = setupDigest;
+                    size = setupSize;
                 }
             }
 

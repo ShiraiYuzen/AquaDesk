@@ -1304,6 +1304,37 @@
                                     <TextBlock Text="异常和排查信息写在 %TEMP%\AquaDesk-crash.log，最多滚动保留 512 KB"
                                                Style="{StaticResource RowHint}" Margin="0,4,96,0" />
                                 </StackPanel>
+
+                                <!-- 安装版专属：打开安装目录 + 卸载（便携版没有安装目录的概念，整块隐藏） -->
+                                <StackPanel x:Name="InstallOnlySection" Visibility="Collapsed">
+                                    <Border Style="{StaticResource CardDivider}" />
+
+                                    <StackPanel Style="{StaticResource Row}">
+                                        <Grid>
+                                            <TextBlock Text="安装目录" Style="{StaticResource RowLabel}" />
+                                            <Button Content="打开" Padding="16,6"
+                                                    HorizontalAlignment="Right"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Click="OnOpenInstallFolder" />
+                                        </Grid>
+                                        <TextBlock Text="程序本体和 Update.exe 都在这里"
+                                                   Style="{StaticResource RowHint}" Margin="0,4,96,0" />
+                                    </StackPanel>
+
+                                    <Border Style="{StaticResource CardDivider}" />
+
+                                    <StackPanel Style="{StaticResource Row}">
+                                        <Grid>
+                                            <TextBlock Text="卸载 AquaDesk" Style="{StaticResource RowLabel}" />
+                                            <Button Content="卸载" Padding="16,6"
+                                                    HorizontalAlignment="Right"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    Click="OnUninstall" />
+                                        </Grid>
+                                        <TextBlock Text="删除程序本体、快捷方式和所有配置数据"
+                                                   Style="{StaticResource RowHint}" Margin="0,4,96,0" />
+                                    </StackPanel>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 

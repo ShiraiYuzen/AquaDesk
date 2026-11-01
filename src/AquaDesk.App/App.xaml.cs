@@ -4,6 +4,9 @@ using System.Windows;
 using System.Windows.Threading;
 using AquaDesk.Services;
 using AquaDesk.Views;
+#if VELOPACK
+using Velopack;
+#endif
 
 namespace AquaDesk;
 
@@ -233,6 +236,12 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+#if VELOPACK
+        // Velopack 安装版：让 VelopackApp 处理更新器传来的 --veloapp-* 钩子参数
+        // （首次安装 / 更新后重启）。必须在单实例检查之前。便携版不编译这段。
+        VelopackApp.Build().Run();
+#endif
+
         // --verbose 打开高频排查日志（布局 / 浮层定位）。默认关，详见 App.Trace
         Verbose = e.Args.Contains("--verbose");
 
@@ -370,26 +379,22 @@ public partial class App : Application
             Log("--update-demo：进入演示分支", null);
             var demo = new UpdateCheckResult(
                 UpdateStatus.Available,
-                new UpdateInfo(
+                new Services.UpdateInfo(
                     "0.7.0",
                     "AquaDesk 0.7.0",
                     """
                     ### 新增
-                    - 设置 → 关于里加了「检查更新」，支持 **一键下载安装**（下载 → 验签 → 替换重启）
-                    - 多源回退：`GitHub API` → 镜像，详情见 [Releases](https://github.com/ShiraiYuzen/AquaDesk/releases)
+                    - 设置 → 关于里加了「检查更新」，有新版会列出更新内容
+                    - 安装版支持 **一键下载安装**；便携版提示网址 + `SHA256`，手动下载
+                    - 详情见 [Releases](https://github.com/ShiraiYuzen/AquaDesk/releases)
 
                     ### 修复
                     - 同一语言下换输入法切不动（搜狗 / 讯飞 / 微软拼音的 HKL 是同一个）
-
-                    ```text
-                    AquaDesk 0.7.0
-                    下载后校验 SHA256 + 指纹
-                    ```
                     """,
                     "https://github.com/ShiraiYuzen/AquaDesk/releases",
-                    null,
-                    null,
-                    0),
+                    "https://github.com/ShiraiYuzen/AquaDesk/releases/download/v0.7.0/AquaDesk-0.7.0.exe",
+                    "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+                    73_000_000),
                 string.Empty);
 
             Dispatcher.BeginInvoke(new Action(() =>
