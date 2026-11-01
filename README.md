@@ -133,6 +133,10 @@ Get-AuthenticodeSignature .\AquaDesk-0.6.2.exe | Format-List Status, StatusMessa
 正式证书（SignPath 免费开源签名 / Microsoft Trusted Signing ≈$10/月 / 商业 OV）需要项目方去申请，
 在此之前自签名 + SHA256 是能提供的最强保证。
 
+> 正在申请 SignPath Foundation 的免费开源签名，表单答案、自查清单与 CI 集成
+> 见 [docs/03-代码签名申请.md](docs/03-代码签名申请.md)。通过后 Release 上的 exe
+> 会由 SignPath 的 HSM 密钥签名（发布者显示为 SignPath Foundation）。
+
 重复启动 = **新版本接管**：双击任意一个 exe，正在跑的旧版本会自动退出、新版本接手。
 所以升级时不用先去托盘里找「退出」。
 
@@ -175,7 +179,11 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 │  └─ trust_signing_cert.ps1  把公钥证书装进受信任根（可撤销）
 ├─ docs/
 │  ├─ 01-产品构想.md          产品定位与功能分层
-│  └─ 02-架构决策.md          ADR-001~010，改视觉/交互前先读
+│  ├─ 02-架构决策.md          ADR-001~010，改视觉/交互前先读
+│  └─ 03-代码签名申请.md       SignPath Foundation 申请材料与 CI 集成说明
+├─ .github/workflows/build.yml  CI：构建（并通过 SignPath 签名，若已配置）
+├─ signpath/
+│  └─ artifact-configuration.xml  签名产物配置（单文件 PE + Authenticode）
 ├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.2）
 └─ versions/
    ├─ v0.0.1/README.md

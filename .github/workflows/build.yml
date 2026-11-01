@@ -1,0 +1,107 @@
+name: build
+
+# 构建 + （可选）SignPath 签名。
+#
+# 现在：只构建，产出未签名 exe 作为 artifact。
+# 申请 SignPath Foundation 通过后：在仓库 Variables 里配好 SIGNPATH_* 三个值、
+# Secrets 里放 SIGNPATH_API_TOKEN，签名步骤会自动启用，无需改本文件。
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      # 和本地打包同一个脚本：没有「本地改过产物」的空间，审核要看的就是这一点
+      - name: Build single-file exe
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Show artifacts
+        shell: pwsh
+        run: |
+          Get-ChildItem dist | Format-Table Name, Length
+          Get-Content dist\SHA256SUMS.txt
+
+      - name: Upload unsigned artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned
+          path: |
+            dist/AquaDesk-*.exe
+            dist/SHA256SUMS.txt
+
+      # SignPath 的 artifact configuration 按**固定文件名**匹配，
+      # 而我们的产物带版本号，所以这里复制一份成 AquaDesk.exe 再提交签名。
+      - name: Stage artifact for signing
+        id: stage
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path sign-in | Out-Null
+          $exe = Get-ChildItem dist/AquaDesk-*.exe | Select-Object -First 1
+          if (-not $exe) { throw "dist 里没有 exe" }
+          Copy-Item $exe.FullName sign-in/AquaDesk.exe -Force
+          "version=$($exe.VersionInfo.ProductVersion)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Upload artifact for signing
+        id: upload-sign-input
+        uses: actions/upload-artifact@v4
+        with:
+          name: for-signing
+          path: sign-in/AquaDesk.exe
+
+      # ---- SignPath（审核通过后自动生效） ----
+      - name: Submit signing request to SignPath
+        if: ${{ vars.SIGNPATH_PROJECT_SLUG != '' }}
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.upload-sign-input.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      # 签名产物叫 AquaDesk.exe，还原成发布用的带版本号名字，并重算 SHA256
+      - name: Rename signed artifact
+        if: ${{ vars.SIGNPATH_PROJECT_SLUG != '' }}
+        shell: pwsh
+        run: |
+          $v = "${{ steps.stage.outputs.version }}"
+          $src = Get-ChildItem signed -Recurse -Filter AquaDesk.exe | Select-Object -First 1
+          if (-not $src) { throw "签名产物里没找到 AquaDesk.exe" }
+          $out = "signed-release/AquaDesk-$v.exe"
+          New-Item -ItemType Directory -Force -Path signed-release | Out-Null
+          Copy-Item $src.FullName $out -Force
+
+          $hash = (Get-FileHash $out -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  AquaDesk-$v.exe" | Set-Content signed-release/SHA256SUMS.txt -Encoding ASCII
+
+          $sig = Get-AuthenticodeSignature $out
+          Write-Host "签名状态：$($sig.Status) / $($sig.SignerCertificate.Subject)"
+
+      - name: Upload signed artifact
+        if: ${{ vars.SIGNPATH_PROJECT_SLUG != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: signed-release
+          path: signed-release/
