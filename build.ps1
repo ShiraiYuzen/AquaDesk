@@ -163,3 +163,8 @@ Write-Host "  版本  $($info.ProductVersion)（文件版本 $($info.FileVersion
 Write-Host "  大小  $sizeMb MB"
 Write-Host "  源码  $srcArchive"
 Write-Host "  回退  releases\ 里现有 $archiveCount 个历史版本" -ForegroundColor DarkGray
+
+# PowerShell 会把脚本里最后一条原生命令的退出码当成脚本退出码：robocopy 正常完成时返回 1
+# （"已复制并带额外信息"），在 CI 里会被判定为失败。这里显式收尾为 0 ——
+# 真正的失败（dotnet publish 出错、找不到产物）上面已经 throw 过了。
+exit 0
