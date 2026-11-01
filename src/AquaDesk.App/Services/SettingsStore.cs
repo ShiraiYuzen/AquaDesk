@@ -4,7 +4,8 @@ using AquaDesk.Models;
 
 namespace AquaDesk.Services;
 
-/// <summary>配置落盘位置：%AppData%\AquaDesk\settings.json</summary>
+/// <summary>配置落盘位置：%AppData%\AquaDesk-net48\settings.json
+/// （net48 实验构建用独立目录，和 .NET 8 主版本 %AppData%\AquaDesk 互不干扰）</summary>
 public static class SettingsStore
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -13,7 +14,7 @@ public static class SettingsStore
     };
 
     public static string RootDirectory =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AquaDesk");
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AquaDesk-net48");
 
     private static string FilePath => Path.Combine(RootDirectory, "settings.json");
 

@@ -29,21 +29,18 @@ public static class AutoStartService
     /// （实测加 "!" 前缀反而排到最后），所以前缀那套在这儿没用。
     /// 想真正排到壁纸软件前面，只能走计划任务。
     /// </summary>
-    private const string ValueName = "AquaDesk";
+    // net48 实验构建用独立身份，避免和 .NET 8 主版本共用同一个 Run 值 / 计划任务而互相串扰
+    private const string ValueName = "AquaDesk-net48";
 
     /// <summary>
     /// 判断一个 Run 值名是不是我们自己的。
-    ///
-    /// **不能只比对 "AquaDesk"**：历史上试过用 "!AquaDesk" 前缀插队（结论是没用，
-    /// 加感叹号反而排到最后），名字后来改回 "AquaDesk"，旧值却没人清 —— 于是出现
-    /// 过「设置里关了自启、程序也认为自己没开（读不到 "AquaDesk"），Windows 每次开机
-    /// 照样按 "!AquaDesk" 把程序拉起来」。
-    /// 现在按「名字里含 aquadesk」匹配，任何历史变体都算自己的，能被读到也能被删掉。
+    /// net48 构建用独立身份 <c>AquaDesk-net48</c>，只认这个名字，
+    /// 避免和 .NET 8 主版本（Run 值名 "AquaDesk"）互相误删对方的自启项。
     /// </summary>
     private static bool IsOwnValueName(string name) =>
-        name.Contains("AquaDesk", StringComparison.OrdinalIgnoreCase);
+        name.Contains("AquaDesk-net48", StringComparison.OrdinalIgnoreCase);
 
-    private const string TaskName = "AquaDesk";
+    private const string TaskName = "AquaDesk-net48";
 
     /// <summary>当前可执行文件的路径。单文件发布时指向原始 exe，不是临时解压目录。</summary>
     private static string? ExecutablePath
@@ -77,27 +74,46 @@ public static class AutoStartService
     /// </summary>
     private static string StableCopyPath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "AquaDesk", "bin", "AquaDesk.exe");
+        "AquaDesk-net48", "bin", "AquaDesk.exe");
 
-    /// <summary>把当前 exe 同步到固定副本（长度和时间都没变就跳过）。</summary>
+    /// <summary>
+    /// 把当前 exe 所在目录整目录同步到固定副本目录（exe + 依赖 dll + config 一起拷）。
+    /// 只拷单个 exe 会导致从稳定副本启动时因缺 dll 而崩溃——net48 是文件夹部署，不是单文件自包含。
+    /// 文件长度和时间都没变就跳过；个别被占用（如正在运行的 exe 自身）的文件跳过，不阻断其余文件。
+    /// </summary>
     private static string? SyncStableCopy(string sourcePath)
     {
         try
         {
             var target = StableCopyPath;
-            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            var targetDir = Path.GetDirectoryName(target)!;
+            Directory.CreateDirectory(targetDir);
 
-            var source = new FileInfo(sourcePath);
-            var copy = new FileInfo(target);
-
-            if (copy.Exists
-                && copy.Length == source.Length
-                && copy.LastWriteTimeUtc >= source.LastWriteTimeUtc)
-            {
+            var sourceDir = Path.GetDirectoryName(sourcePath);
+            if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
                 return target;
-            }
 
-            File.Copy(sourcePath, target, overwrite: true);
+            foreach (var srcFile in Directory.GetFiles(sourceDir))
+            {
+                var name = Path.GetFileName(srcFile);
+                var dstFile = Path.Combine(targetDir, name);
+                try
+                {
+                    var srcInfo = new FileInfo(srcFile);
+                    var dstInfo = new FileInfo(dstFile);
+                    if (dstInfo.Exists
+                        && dstInfo.Length == srcInfo.Length
+                        && dstInfo.LastWriteTimeUtc >= srcInfo.LastWriteTimeUtc)
+                    {
+                        continue;
+                    }
+                    File.Copy(srcFile, dstFile, overwrite: true);
+                }
+                catch
+                {
+                    // 个别文件被占用（例如当前正运行的 exe 自身）跳过，不阻断其余文件
+                }
+            }
             return target;
         }
         catch (Exception ex)
@@ -122,8 +138,14 @@ public static class AutoStartService
             var path = ExecutablePath;
             if (path is null) return;
 
-            // 只同步固定副本，不重注册任务 —— 否则改个版本号就要弹一次 UAC。
-            SyncStableCopy(path);
+            // 同步固定副本（任务 / Run 键都指向它，改版本号时只更新副本）
+            var launchPath = SyncStableCopy(path) ?? path;
+
+            // 双保险：只要自启开着，就确保 HKCU 的 Run 键也存在做兜底。
+            // 计划任务偶尔不触发（普通权限建根目录任务被拒、回落 schtasks 带上一堆保守默认、
+            // 笔记本电池策略等），而 Run 键是 Windows 登录启动最稳的入口。
+            // 两者指向同一个稳定副本，全局单实例互斥锁会拦掉重复启动，不会真开两个。
+            WriteRunValue(launchPath);
 
             // 任务还没建：走 Run 键（不提权，弹 UAC 太烦）
             if (!IsTaskRegistered())
@@ -170,15 +192,15 @@ public static class AutoStartService
         // 任务和 Run 键都指向固定副本，改版本号时只更新副本就行
         var launchPath = SyncStableCopy(path) ?? path;
 
-        // 计划任务优先；注册成功就把 Run 键删掉，免得开机启动两次
-        if (RegisterLogonTask(launchPath, allowElevated))
-        {
-            RemoveRunValue();
-            return true;
-        }
+        // 计划任务优先注册；但不管任务是否建成功，都再写一份 Run 键做兜底——
+        // 实测计划任务偶尔不触发（普通权限下建根目录任务会被拒、回落到 schtasks 后
+        // 又带上一堆保守默认策略；笔记本电池策略、UAC 回落等都会让它不拉起程序），
+        // 而 HKCU 的 Run 键是 Windows 登录时最稳的自启入口。两者指向同一个稳定副本，
+        // 全局单实例互斥锁（Global\AquaDesk.SingleInstance）会拦掉重复启动，不会真的开两个。
+        var taskOk = RegisterLogonTask(launchPath, allowElevated);
+        var runOk = WriteRunValue(launchPath);
 
-        // 计划任务用不了（被策略限制之类）就退回 Run 键
-        return WriteRunValue(launchPath);
+        return taskOk || runOk;
     }
 
     // ---------------- 计划任务 ----------------
@@ -384,7 +406,7 @@ public static class AutoStartService
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: false);
             if (key is null) return false;
 
-            // 按名字扫，不要写死 "AquaDesk" —— 历史遗留的 "!AquaDesk" 也要算数
+            // 按名字扫，只认 "AquaDesk-net48"（net48 独立身份，不影响主版本的 "AquaDesk"）
             foreach (var name in key.GetValueNames())
             {
                 if (!IsOwnValueName(name)) continue;
@@ -433,7 +455,7 @@ public static class AutoStartService
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
             if (key is null) return;
 
-            // 把所有变体都删掉（"AquaDesk" / "!AquaDesk" / 任何含 aquadesk 的名字）
+            // 把 net48 的 "AquaDesk-net48" 删掉（独立身份，不会误删主版本的 "AquaDesk"）
             foreach (var name in key.GetValueNames())
             {
                 if (!IsOwnValueName(name)) continue;

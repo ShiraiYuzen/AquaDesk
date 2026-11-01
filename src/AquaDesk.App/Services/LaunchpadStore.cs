@@ -31,7 +31,7 @@ public sealed class LaunchpadLayoutEntry
 public static class LaunchpadStore
 {
     private static readonly string DirectoryPath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AquaDesk");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "AquaDesk-net48");
 
     private static readonly string FilePath = Path.Combine(DirectoryPath, "launchpad.json");
 

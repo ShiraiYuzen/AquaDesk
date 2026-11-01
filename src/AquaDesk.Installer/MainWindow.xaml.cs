@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         else
         {
             PathBox.Text = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk");
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk-net48");
         }
     }
 

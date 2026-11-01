@@ -248,13 +248,13 @@ public partial class SettingsWindow : Window
         var root = Velopack.Locators.VelopackLocator.Current.RootAppDir;
 #else
         var root = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk");
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk-net48");
 #endif
 
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root))
         {
             root = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk");
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk-net48");
         }
 
         OpenFolder(root);
@@ -295,7 +295,7 @@ public partial class SettingsWindow : Window
             var update = Velopack.Locators.VelopackLocator.Current.UpdateExePath;
 #else
             var update = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk", "Update.exe");
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk-net48", "Update.exe");
 #endif
 
             if (string.IsNullOrWhiteSpace(update) || !File.Exists(update))
@@ -305,7 +305,7 @@ public partial class SettingsWindow : Window
                 var root = Velopack.Locators.VelopackLocator.Current.RootAppDir;
 #else
                 var root = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk");
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "AquaDesk-net48");
 #endif
                 if (!string.IsNullOrWhiteSpace(root) && Directory.Exists(root))
                     Directory.Delete(root, recursive: true);
