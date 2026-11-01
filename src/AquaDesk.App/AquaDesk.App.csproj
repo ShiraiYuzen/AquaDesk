@@ -28,6 +28,8 @@
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
     <DebugType>none</DebugType>
     <LangVersion>latest</LangVersion>
+    <!-- 显式标记这是 net48 实验构建线，源码里用 #if NET48_BUILD 区分 net48 专属逻辑 -->
+    <DefineConstants>$(DefineConstants);NET48_BUILD</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
