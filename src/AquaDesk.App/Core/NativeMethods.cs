@@ -224,6 +224,21 @@ internal static class NativeMethods
     [DllImport("dwmapi.dll")]
     public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
 
+    // ---------------- 窗口捕获保护 ----------------
+
+    /// <summary>窗口没设捕获限制。</summary>
+    public const uint WDA_NONE = 0x0;
+
+    /// <summary>只允许在显示器上显示，抓出来是黑的（老写法）。</summary>
+    public const uint WDA_MONITOR = 0x1;
+
+    // WDA_EXCLUDEFROMCAPTURE（0x11）定义在下面的「抓屏」段，那边还有配对的 SetWindowDisplayAffinity，
+    // 这里直接复用同一个常量。
+
+    /// <summary>查窗口的捕获保护等级。返回 false 表示查不了（按不限制处理）。</summary>
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool GetWindowDisplayAffinity(IntPtr hwnd, out uint affinity);
+
     // ---------------- 进程信息（要能读提权进程） ----------------
 
     public const uint PROCESS_TERMINATE = 0x0001;

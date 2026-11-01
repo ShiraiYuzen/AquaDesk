@@ -93,6 +93,9 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _showBatteryPercent;
     private bool _showComputerIcon = true;
     private bool _showWindowPreviews = true;
+
+    /// <summary>预览只显示应用图标、不抓窗口内容（隐私模式）。</summary>
+    private bool _previewIconOnly;
     private DockTopMode _topMode = DockTopMode.SinkWhenCovered;
     private DockEdge _edge = DockEdge.Bottom;
     private double _uiScale = DefaultUiScale();
@@ -625,6 +628,16 @@ public sealed class AppSettings : INotifyPropertyChanged
     {
         get => _showWindowPreviews;
         set => Set(ref _showWindowPreviews, value);
+    }
+
+    /// <summary>
+    /// 隐私模式：预览区只显示应用图标，一张缩略图都不抓。
+    /// 窗口标题仍会保留（合并预览的窗口列表要用）；密码类应用无论如何都不会被抓。
+    /// </summary>
+    public bool PreviewIconOnly
+    {
+        get => _previewIconOnly;
+        set => Set(ref _previewIconOnly, value);
     }
 
     /// <summary>

@@ -4,6 +4,31 @@
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+---
+
+## [0.6.1] - 2026-11-01
+
+### 安全加固
+
+- **窗口缩略图的隐私边界**。`PrintWindow` 会把任何窗口内容抓成静态图贴在常驻 Topmost
+  浮层上 —— 密码管理器、DRM、私人聊天一旦被抓进去，就等于暴露在任何截图、录屏和旁人
+  视线里。现在两道闸：
+  1. 窗口自己声明了捕获保护（`WDA_MONITOR` / `WDA_EXCLUDEFROMCAPTURE`，密码管理器与
+     DRM 播放器普遍这么设）→ 直接不抓，预览退回应用图标；
+  2. 已知密码 / 密钥类应用（1Password、Bitwarden、KeePass(XC)、LastPass、Dashlane、
+     Enpass、NordPass、RoboForm、Keeper、Proton Pass、Authy、WinAuth 等）按 exe 名兜住。
+- **新增「预览只显示图标」开关**（图标页 → 窗口预览下方）。隐私模式下不抓任何缩略图，
+  全部退回应用图标；切换即时生效（开 → 丢掉已抓的图，关 → 重抓一轮）。窗口标题仍保留
+  （合并预览的窗口列表要用），该开关也纳入「恢复默认」与「全部重置」。
+
+### 分发
+
+- **Release 附 `SHA256SUMS.txt`**：`build.ps1` 打包时自动生成（sha256sum 兼容格式），
+  随 exe 一起上传；README 补了校验方法。没有代码签名的情况下，这是唯一能验证
+  「下载到的 exe 没被篡改」的手段。
+
+---
+
 ## [0.6.0] - 2026-11-01
 
 > **版本号重排说明**：0.4.12~0.4.21 十个内部构建按更新量重新归并为三个版本 ——

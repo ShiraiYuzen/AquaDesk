@@ -904,6 +904,20 @@
 
                                 <StackPanel Style="{StaticResource Row}">
                                     <Grid>
+                                        <TextBlock Text="预览只显示图标" Style="{StaticResource RowLabel}" />
+                                        <CheckBox Style="{StaticResource SwitchStyle}"
+                                                  HorizontalAlignment="Right"
+                                                  IsChecked="{Binding PreviewIconOnly, Mode=TwoWay}" />
+                                    </Grid>
+                                    <TextBlock Text="隐私模式：不抓取窗口内容，只显示应用图标（窗口标题仍保留）。密码管理器与 DRM 窗口无论开关与否都不会被抓"
+                                               Style="{StaticResource RowHint}" Margin="0,4,58,0"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Border Style="{StaticResource CardDivider}" />
+
+                                <StackPanel Style="{StaticResource Row}">
+                                    <Grid>
                                         <TextBlock Text="窗口层级" Style="{StaticResource RowLabel}"
                                                    VerticalAlignment="Center" />
                                         <ComboBox Style="{StaticResource DropdownStyle}"

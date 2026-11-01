@@ -218,6 +218,9 @@ public partial class DockWindow : Window
     {
         if (_capturing) return;
 
+        // 隐私模式：一张图都不抓，预览退回应用图标
+        if (_vm.Settings.PreviewIconOnly) return;
+
         var hovering = IsMouseOver;
 
         var targets = new List<(DockItem Item, IntPtr Handle)>();
@@ -439,6 +442,13 @@ public partial class DockWindow : Window
         if (e.PropertyName is nameof(AppSettings.ShowWindowPreviews))
         {
             RefreshWindowPreviews();
+        }
+
+        // 隐私模式：开 → 丢掉已经抓到的缩略图；关 → 重新抓一轮
+        if (e.PropertyName is nameof(AppSettings.PreviewIconOnly))
+        {
+            foreach (var preview in _vm.Previews) preview.Thumbnail = null;
+            CaptureThumbnails();
         }
 
         // 切换隐藏任务栏会改工作区（Shell 异步生效），稍等一下再贴底，否则会停在旧位置

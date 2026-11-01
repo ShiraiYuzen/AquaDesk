@@ -3,7 +3,7 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.6.0** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.6.1** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
@@ -55,6 +55,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.4.12](versions/v0.4.12/README.md) | 2026-10-31 | 任务栏恢复 + 灵动岛首版 | 任务栏子窗口逐个恢复、输入法发给焦点窗口、SMTC 播放条（吸收原 0.4.12+0.4.13） |
 | [v0.5.0](versions/v0.5.0/README.md) | 2026-11-01 | 灵动岛完整形态 | 拖动跟手、播放形态可拖、播放宽高可调、状态胶囊 WPS 沉底修复（吸收原 0.4.15~0.4.19） |
 | [v0.6.0](versions/v0.6.0/README.md) | 2026-11-01 | 窗口预览按应用合并 | 角标、窗口列表、关闭所有窗口（吸收原 0.4.20+0.4.21） |
+| [v0.6.1](versions/v0.6.1/README.md) | 2026-11-01 | 安全加固 | 缩略图隐私边界、预览只显示图标、Release 附 SHA256 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -76,6 +77,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.4.12 | ✗ 未单独发布（重排前构建名 0.4.13） | ✓ 完整源码（`versions/v0.4.12/src/`） |
 | v0.5.0 | ✗ 未单独发布（对应内部构建 0.4.19） | ✓ 完整源码（`versions/v0.5.0/src/`） |
 | v0.6.0 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.0/src/`） |
+| v0.6.1 | ✓ 见 Releases（附 `SHA256SUMS.txt`） | ✓ 完整源码（`versions/v0.6.1/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -89,6 +91,23 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 到 [Releases](../../releases) 下载 `AquaDesk-<版本>.exe`，双击即可。
 单文件自包含，不需要安装 .NET。想直接用最新版就挑最新的那个 Release。
+
+### 校验下载的文件（建议）
+
+exe 没有代码签名，所以每个 Release 都附了 `SHA256SUMS.txt`。下载后核对一下，
+能确认文件在传输途中没被篡改：
+
+```powershell
+# Windows PowerShell —— 先记下 SHA256SUMS.txt 里那串哈希
+Get-FileHash .\AquaDesk-0.6.1.exe -Algorithm SHA256 | Format-List
+```
+
+```bash
+# Linux / macOS —— 和 exe 放同一目录，直接校验
+sha256sum -c SHA256SUMS.txt
+```
+
+两边的哈希对得上就没问题；对不上说明文件被改过，别运行。
 
 重复启动 = **新版本接管**：双击任意一个 exe，正在跑的旧版本会自动退出、新版本接手。
 所以升级时不用先去托盘里找「退出」。
@@ -128,7 +147,7 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 ├─ docs/
 │  ├─ 01-产品构想.md          产品定位与功能分层
 │  └─ 02-架构决策.md          ADR-001~010，改视觉/交互前先读
-├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.0）
+├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.1）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
@@ -140,7 +159,8 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
    ├─ v0.4.11/
    ├─ v0.4.12/
    ├─ v0.5.0/
-   └─ v0.6.0/
+   ├─ v0.6.0/
+   └─ v0.6.1/
       ├─ src/                该版本的完整源码
       └─ README.md
 ```
