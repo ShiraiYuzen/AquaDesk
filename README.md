@@ -113,6 +113,10 @@ dotnet build -c Release
 - **内存占用偏高**：自包含 .NET 运行时，工作集约 300+ MB。
 - **自签名证书**：能确认「文件来自同一发布者」，但 Windows 默认不信任，SmartScreen 仍会拦。
 
+## 其他分支
+
+- **net48 分支**（实验性）：基于本仓库源码改到 .NET Framework 4.8（系统自带、进程间共享运行时）。内存约 212 MB（本分支 ~300+ MB）、安装包仅 ~0.7 MB，适合想显著降低占用的机器；更新走应用内「一键更新」或去 Releases 手动下载。详见其 [README](https://github.com/ShiraiYuzen/AquaDesk/blob/net48/README.md)。
+
 ## 许可证
 
 [MIT](LICENSE) © 2026 ShiraiYuzen
