@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -1538,57 +1539,118 @@ public partial class DockWindow : Window
 
     // ---------------- 右键菜单 ----------------
 
-    private DispatcherTimer? _menuWatch;
 
     /// <summary>
     /// Dock 窗口是 WS_EX_NOACTIVATE，右键菜单弹出后不会因为「窗口失活」自动关闭，
     /// 点别的窗口时菜单会赖着不走。这里自己盯着：只要在菜单外面按下鼠标就关掉。
     /// </summary>
+    private readonly List<ContextMenu> _openMenus = new();
+
     private void OnMenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is not ContextMenu menu) return;
 
         UpdateWindowPreviewMenu(menu);
-
-        _menuWatch?.Stop();
-        _menuWatch = new DispatcherTimer(DispatcherPriority.Background)
-        {
-            Interval = TimeSpan.FromMilliseconds(60)
-        };
-
-        _menuWatch.Tick += (_, _) =>
-        {
-            if (!menu.IsOpen)
-            {
-                _menuWatch?.Stop();
-                return;
-            }
-
-            if (!IsAnyMouseButtonDown() || IsCursorInside(menu)) return;
-
-            menu.IsOpen = false;
-            _menuWatch?.Stop();
-        };
-
-        _menuWatch.Start();
+        TrackMenu(menu);
     }
 
-    private static bool IsAnyMouseButtonDown() =>
-        (NativeMethods.GetAsyncKeyState(0x01) & 0x8000) != 0     // 左键
-        || (NativeMethods.GetAsyncKeyState(0x02) & 0x8000) != 0; // 右键
-
-    private static bool IsCursorInside(FrameworkElement element)
+    /// <summary>
+    /// 把菜单登记进「菜单栈」。Dock 上会同时开两层菜单（列表 + 条目右键），
+    /// 所以不能只管一个：任何一层关掉都要重算，全关完才恢复浮层。
+    /// </summary>
+    private void TrackMenu(ContextMenu menu)
     {
-        if (!NativeMethods.GetCursorPos(out var cursor)) return true;
+        if (!_openMenus.Contains(menu))
+        {
+            _openMenus.Add(menu);
+            menu.Closed += (_, _) => OnMenuClosed(menu);
+        }
 
-        var topLeft = element.PointToScreen(new Point(0, 0));
-        var dpi = VisualTreeHelper.GetDpi(element);
+        // 菜单开着期间：
+        //  1) 状态胶囊降层（它是 Topmost，会把菜单压在下面）
+        //  2) 让 OverlayZOrder 别在这期间把浮层重新抬回置顶
+        //  3) 菜单自己的弹窗抬到最上层
+        IsMenuOpen = true;
+        SetStatusCapsuleTopmost(false);
+        RaisePopupTopmost(menu);
 
-        var width = element.ActualWidth * dpi.DpiScaleX;
-        var height = element.ActualHeight * dpi.DpiScaleY;
+        // 点所有打开菜单之外的地方 → 全部关掉
+        MenuDismissHook.Install(AllMenusBounds, CloseAllMenus);
 
-        return cursor.X >= topLeft.X && cursor.X <= topLeft.X + width
-            && cursor.Y >= topLeft.Y && cursor.Y <= topLeft.Y + height;
+    }
+
+    private void OnMenuClosed(ContextMenu menu)
+    {
+        _openMenus.Remove(menu);
+        if (_openMenus.Count > 0) return;
+
+        MenuDismissHook.Uninstall();
+        IsMenuOpen = false;
+
+        // 前台窗口最大化时浮层本来是沉底的，别被这里顺手抬回置顶
+        if (!OverlayZOrder.IsSunk) SetStatusCapsuleTopmost(true);
+    }
+
+    /// <summary>把所有打开的菜单一起收掉（切换 / 关闭窗口之后必须调，否则菜单会飘在新应用上面）。</summary>
+    private void CloseAllMenus()
+    {
+        foreach (var menu in _openMenus.ToArray())
+        {
+            menu.IsOpen = false;
+        }
+    }
+
+    /// <summary>所有打开菜单的屏幕矩形并集，给鼠标钩子判断点里点外。</summary>
+    private Rect? AllMenusBounds()
+    {
+        Rect? union = null;
+
+        foreach (var menu in _openMenus.ToArray())
+        {
+            if (MenuScreenBounds(menu) is not { } rect) continue;
+            union = union is null ? rect : Rect.Union(union.Value, rect);
+        }
+
+        return union;
+    }
+
+    /// <summary>菜单开着没有。OverlayZOrder 用它来决定要不要在这期间把浮层抬回置顶。</summary>
+    public bool IsMenuOpen { get; private set; }
+
+    /// <summary>菜单弹窗自己的 HWND 矩形（物理像素），给鼠标钩子判断点里点外。</summary>
+    private static Rect? MenuScreenBounds(FrameworkElement menu)
+    {
+        if (PresentationSource.FromVisual(menu) is not HwndSource source) return null;
+        if (source.Handle == IntPtr.Zero) return null;
+
+        return NativeMethods.GetWindowRect(source.Handle, out var rect)
+            ? new Rect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top)
+            : null;
+    }
+
+    /// <summary>把菜单的弹窗抬到最上层，压过同为 Topmost 的状态胶囊。</summary>
+    private void RaisePopupTopmost(FrameworkElement menu)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (PresentationSource.FromVisual(menu) is not HwndSource source) return;
+            if (source.Handle == IntPtr.Zero) return;
+
+            NativeMethods.SetWindowPos(
+                source.Handle, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,
+                NativeMethods.SWP_NOMOVE | NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE);
+        }, DispatcherPriority.Loaded);
+    }
+
+    private static void SetStatusCapsuleTopmost(bool topmost)
+    {
+        foreach (Window window in Application.Current.Windows)
+        {
+            if (window is StatusDockWindow status && status.Topmost != topmost)
+            {
+                status.Topmost = topmost;
+            }
+        }
     }
 
     private void OnMenuCloseApp(object sender, RoutedEventArgs e)
@@ -1795,7 +1857,7 @@ public partial class DockWindow : Window
         }
 
         // 末尾：一键关掉这个应用合并组里的全部窗口
-        menu.Items.Add(new Separator());
+        menu.Items.Add(CreateMenuDivider());
 
         var handles = item.GroupWindows.Select(w => w.Handle).ToList();
         var closeAll = new MenuItem { Header = "关闭所有窗口" };
@@ -1814,6 +1876,9 @@ public partial class DockWindow : Window
     /// 「全部窗口」：把预览区放不下的应用都列出来。
     /// 应用 → 窗口两级；只有一个窗口的应用直接平铺成一条，不套没有意义的二级菜单。
     /// </summary>
+    /// <summary>排查用（--test-allwindows）：直接弹出「全部窗口」菜单，方便脚本验证层级和自动关闭。</summary>
+    public void OpenAllWindowsMenuForTest() => ShowAllWindowsMenu(this);
+
     private void ShowAllWindowsMenu(FrameworkElement? target)
     {
         var groups = _vm.WindowGroups;
@@ -1849,6 +1914,18 @@ public partial class DockWindow : Window
         menu.IsOpen = true;
     }
 
+    /// <summary>
+    /// 菜单里的分割线。
+    /// 不用 WPF 的 <see cref="Separator"/>：它在 ContextMenu 里拿不到我们的隐式样式
+    /// （实测画出来是系统默认的近白线，而且被 ContentPresenter 挤到右边），
+    /// 所以直接放一个自绘的 Border，颜色跟着主题走。
+    /// </summary>
+    /// <summary>菜单分割线：一个禁用的 MenuItem，里面一条居中的短线（见 MenuDividerItem 样式）。</summary>
+    private MenuItem CreateMenuDivider() => new()
+    {
+        Style = (Style)FindResource("MenuDividerItem")
+    };
+
     /// <summary>单窗口应用在菜单里长这样：「应用名 · 标题」，标题没信息量时只留应用名。</summary>
     private static string DescribeSingle(string appName, string title)
     {
@@ -1866,7 +1943,7 @@ public partial class DockWindow : Window
     /// 建一个窗口条目：左键点一下切过去，右键弹「关闭窗口」。
     /// 和 Dock 缩略图预览的右键菜单（WindowPreviewMenu）保持一致 —— 提权窗口置灰并说明原因。
     /// </summary>
-    private static MenuItem CreateWindowEntry(string title, IntPtr handle)
+    private MenuItem CreateWindowEntry(string title, IntPtr handle)
     {
         var canClose = WindowPreviewService.CanControl(handle);
 
@@ -1883,19 +1960,50 @@ public partial class DockWindow : Window
             header.Foreground = fg;
         }
 
+        // 右键菜单和 Dock 缩略图的 WindowPreviewMenu 保持一致：切换 + 关闭
+        var switchItem = new MenuItem { Header = "切换到该窗口" };
+        switchItem.Click += (_, _) =>
+        {
+            // 切走之后菜单必须一起收：Dock 是 NOACTIVATE，菜单不会因为失活自己关，
+            // 用户看到的就是「已经切到别的软件了，这两个菜单还飘在上面」
+            CloseAllMenus();
+            WindowPreviewService.Activate(handle);
+        };
+
         var closeItem = new MenuItem
         {
             Header = canClose ? "关闭窗口" : "关闭窗口（需要管理员权限）",
             IsEnabled = canClose,
         };
-        closeItem.Click += (_, _) => WindowPreviewService.Close(handle);
+        closeItem.Click += (_, _) =>
+        {
+            CloseAllMenus();
+            WindowPreviewService.Close(handle);
+        };
 
         var closeMenu = new ContextMenu();
+        closeMenu.Opened += (_, _) => TrackMenu(closeMenu);
+        closeMenu.Items.Add(switchItem);
+        closeMenu.Items.Add(CreateMenuDivider());
         closeMenu.Items.Add(closeItem);
-        header.ContextMenu = closeMenu;
 
         var entry = new MenuItem { Header = header };
-        entry.Click += (_, _) => WindowPreviewService.Activate(handle);
+        entry.Click += (_, _) =>
+        {
+            CloseAllMenus();
+            WindowPreviewService.Activate(handle);
+        };
+
+        // 右键整行都能弹这个菜单（以前只挂在 header 的 TextBlock 上，行内空白处右键没反应）
+        entry.ContextMenu = closeMenu;
+        entry.PreviewMouseRightButtonUp += (_, e) =>
+        {
+            e.Handled = true;
+            closeMenu.PlacementTarget = entry;
+            closeMenu.Placement = PlacementMode.MousePoint;
+            closeMenu.IsOpen = true;
+        };
+
         return entry;
     }
 

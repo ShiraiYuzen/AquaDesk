@@ -35,5 +35,5 @@
     <SolidColorBrush x:Key="MenuFgBrush" Color="#F2F5FA" />
     <SolidColorBrush x:Key="MenuFgDimBrush" Color="#8A93A6" />
     <SolidColorBrush x:Key="MenuHoverBrush" Color="#26FFFFFF" />
-    <SolidColorBrush x:Key="MenuSeparatorBrush" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="MenuSeparatorBrush" Color="#CCFFFFFF" />
 </ResourceDictionary>

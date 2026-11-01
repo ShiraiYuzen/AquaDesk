@@ -53,7 +53,7 @@
             <MenuItem Header="打开" Click="OnMenuOpen" />
             <MenuItem Header="关闭应用" Click="OnMenuCloseApp"
                       IsEnabled="{Binding IsRunning}" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="添加应用…" Click="OnMenuAdd" />
             <MenuItem Header="新建文件夹" Click="OnMenuNewFolder" />
             <MenuItem Header="移除此图标" Click="OnMenuRemove" />
@@ -62,7 +62,7 @@
         <!-- 用户新建的文件夹：里面能放程序，也能放文件 -->
         <ContextMenu x:Key="FolderIconMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="打开文件夹" Click="OnOpenFolder" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="重命名" Click="OnRenameFolder" />
             <MenuItem Header="添加文件…" Click="OnMenuAddToFolder" />
             <MenuItem Header="新建文件夹" Click="OnMenuNewFolder" />
@@ -71,7 +71,7 @@
 
         <ContextMenu x:Key="ComputerIconMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="打开我的电脑" Click="OnOpenComputer" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
             <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
         </ContextMenu>
@@ -79,13 +79,13 @@
         <!-- 窗口预览：只做「切过去 / 关掉」，别把应用菜单套上去（里面的移除会算错索引） -->
         <ContextMenu x:Key="WindowPreviewMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="切换到该窗口" Click="OnActivateWindow" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="关闭窗口" Tag="close" Click="OnCloseWindow" />
         </ContextMenu>
 
         <ContextMenu x:Key="BrandIconMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
         </ContextMenu>
 
@@ -93,13 +93,13 @@
             <MenuItem Header="打开废纸篓" Click="OnOpenTrash" />
             <MenuItem Header="关闭应用" Click="OnMenuCloseApp"
                       IsEnabled="{Binding IsRunning}" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="清空废纸篓" Click="OnEmptyTrash" />
         </ContextMenu>
 
         <ContextMenu x:Key="LaunchpadIconMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="打开启动台" Click="OnMenuLaunchpad" />
-            <Separator />
+            <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
             <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
         </ContextMenu>
@@ -232,7 +232,7 @@
                 <ContextMenu Opened="OnMenuOpened">
                     <MenuItem Header="添加应用…" Click="OnMenuAdd" />
                     <MenuItem Header="新建文件夹" Click="OnMenuNewFolder" />
-                    <Separator />
+                    <MenuItem Style="{StaticResource MenuDividerItem}" />
                     <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
                     <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
                 </ContextMenu>
