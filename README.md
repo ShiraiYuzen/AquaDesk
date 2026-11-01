@@ -5,6 +5,12 @@
 
 **当前版本：0.6.0** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
+![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
+![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
+![.NET](https://img.shields.io/badge/.NET-8%20%2B%20WPF-512BD4)
+![Size](https://img.shields.io/badge/single--file%20exe-69.6%20MB-informational)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 ---
 
 ## 它是什么
