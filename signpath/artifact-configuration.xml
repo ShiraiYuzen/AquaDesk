@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath 的产物配置（Artifact Configuration）。
+
+  用法：SignPath 控制台 → 项目 → Artifact Configurations → 新建，把本文件内容粘进去。
+  文件名必须固定为 AquaDesk.exe —— CI 里会把带版本号的产物复制成这个名字再提交签名
+  （见 .github/workflows/build.yml 的 "Stage artifact for signing" 步骤）。
+
+  本配置只做一件事：对这个 PE 文件打 Authenticode 签名，不涉及 zip / msi / 脚本。
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration">
+  <pe-file path="AquaDesk.exe">
+    <authenticode-sign />
+  </pe-file>
+</artifact-configuration>
