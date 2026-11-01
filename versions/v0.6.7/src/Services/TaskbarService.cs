@@ -1,0 +1,222 @@
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Threading;
+using AquaDesk.Core;
+
+namespace AquaDesk.Services;
+
+/// <summary>
+/// 隐藏 / 显示原生任务栏，并把它占的那一条从工作区里释放出来。
+///
+/// 踩过的坑，记下来免得再试：
+/// 1. <c>ShowWindow(SW_HIDE)</c> 只是把窗口藏了，**工作区那一条不会还回来**，
+///    最大化窗口底部永远差 48px。
+/// 2. <c>SPI_SETWORKAREA</c> 想手动改回去：返回 True，但 Shell 立刻覆盖回原值 ——
+///    任务栏自己是 AppBar，工作区由它说了算，别人抢不走（实测 26~1080 → 立刻变回 0~1032）。
+/// 3. 唯一有效的办法是 <c>ABM_SETSTATE + ABS_AUTOHIDE</c>：任务栏切成自动隐藏后，
+///    Shell 会重算工作区，48px 就回来了。
+///
+/// 但自动隐藏有个副作用：鼠标一碰屏幕底边，Shell 就把任务栏拉出来。
+/// 所以配一个 120ms 的守卫定时器，看见它露头就按回去。
+/// </summary>
+public static class TaskbarService
+{
+    private static DispatcherTimer? _guard;
+
+    /// <summary>
+    /// 「任务栏是我藏起来的，还没还」的标记文件。
+    ///
+    /// 正常退出会在 OnExit / 崩溃处理里删掉它；进程被强杀（taskkill /F、蓝屏）时删不掉，
+    /// 标记就留到下次启动 —— 那时候一看就知道「上次没收拾干净」，先把任务栏还回去。
+    /// 没有常驻看门狗的情况下，这是唯一能跨进程闭环的恢复线索。
+    /// </summary>
+    private static string MarkerPath =>
+        Path.Combine(SettingsStore.RootDirectory, "taskbar-hidden.marker");
+
+    /// <summary>上次是不是异常退出、把任务栏留在了隐藏态。</summary>
+    public static bool HasStaleMarker()
+    {
+        try
+        {
+            return File.Exists(MarkerPath);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>清掉标记（任务栏已恢复 / 主动放弃隐藏时调用）。</summary>
+    public static void ClearMarker()
+    {
+        try
+        {
+            if (File.Exists(MarkerPath)) File.Delete(MarkerPath);
+        }
+        catch
+        {
+            // 删不掉不影响功能，下次启动顶多多恢复一次任务栏
+        }
+    }
+
+    private static void WriteMarker()
+    {
+        try
+        {
+            var dir = Path.GetDirectoryName(MarkerPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            File.WriteAllText(MarkerPath, $"{Environment.ProcessId} {DateTime.Now:O}");
+        }
+        catch
+        {
+            // 写不了标记时降级为「只能靠正常退出路径恢复」
+        }
+    }
+
+    public static bool IsVisible()
+    {
+        var taskbar = NativeMethods.FindWindowW("Shell_TrayWnd", null);
+        return taskbar != IntPtr.Zero && NativeMethods.IsWindowVisible(taskbar);
+    }
+
+    public static bool SetVisible(bool visible)
+    {
+        try
+        {
+            var taskbar = NativeMethods.FindWindowW("Shell_TrayWnd", null);
+            if (taskbar == IntPtr.Zero) return false;
+
+            if (visible)
+            {
+                StopGuard();
+                ClearMarker();
+
+                // 关键顺序：先 SW_SHOW 让窗口「可见」，再 ABM_SETSTATE(ALWAYSONTOP)
+                // 清掉自动隐藏位。
+                // Win11 的任务栏是 XAML 进程——窗口还处在隐藏态时 ABM_SETSTATE 不生效，
+                // 必须先可见才能把「自动隐藏」位清掉，否则 Shell 下一帧又把它收走，
+                // 表现为「API 状态健康、但屏幕上看不到任务栏」。
+                RestoreTaskbar(taskbar);
+
+                // 偶尔 Shell 抢在中间又自动收一次（自动隐藏的残留动画），
+                // 用非阻塞定时器补几刀兜底，不卡 UI。
+                var retry = new DispatcherTimer(DispatcherPriority.Background)
+                {
+                    Interval = TimeSpan.FromMilliseconds(150)
+                };
+                var tries = 0;
+                retry.Tick += (_, _) =>
+                {
+                    RestoreTaskbar(taskbar);
+                    if (++tries >= 3) retry.Stop();
+                };
+                retry.Start();
+            }
+            else
+            {
+                // 顺序很重要：先切成自动隐藏让 Shell 释放工作区，再藏窗口，最后开守卫
+                SetState(taskbar, NativeMethods.ABS_AUTOHIDE);
+                NativeMethods.ShowWindow(taskbar, NativeMethods.SW_HIDE);
+                StartGuard();
+
+                // 落标记：进程要是被强杀，下次启动靠它把任务栏捡回来
+                WriteMarker();
+            }
+
+            App.Log($"任务栏：visible={visible} 自动隐藏={IsAutoHide(taskbar)}", null);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AquaDesk] 切换任务栏可见性失败：{ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 自动隐藏的任务栏，鼠标碰到屏幕底边就会被 Shell 拉出来。
+    /// 这个定时器盯着它，一露头就按回去。
+    /// </summary>
+    private static void StartGuard()
+    {
+        if (_guard is not null) return;
+
+        _guard = new DispatcherTimer(DispatcherPriority.Background)
+        {
+            Interval = TimeSpan.FromMilliseconds(120)
+        };
+
+        _guard.Tick += (_, _) =>
+        {
+            var taskbar = NativeMethods.FindWindowW("Shell_TrayWnd", null);
+            if (taskbar == IntPtr.Zero) return;
+
+            if (NativeMethods.IsWindowVisible(taskbar))
+            {
+                NativeMethods.ShowWindow(taskbar, NativeMethods.SW_HIDE);
+            }
+        };
+
+        _guard.Start();
+    }
+
+    private static void StopGuard()
+    {
+        _guard?.Stop();
+        _guard = null;
+    }
+
+    private static void SetState(IntPtr taskbar, int state)
+    {
+        var data = new NativeMethods.APPBARDATA
+        {
+            cbSize = Marshal.SizeOf<NativeMethods.APPBARDATA>(),
+            hWnd = taskbar,
+            lParam = new IntPtr(state)
+        };
+
+        NativeMethods.SHAppBarMessage(NativeMethods.ABM_SETSTATE, ref data);
+    }
+
+    private static bool IsAutoHide(IntPtr taskbar)
+    {
+        var data = new NativeMethods.APPBARDATA
+        {
+            cbSize = Marshal.SizeOf<NativeMethods.APPBARDATA>(),
+            hWnd = taskbar
+        };
+
+        var state = (long)NativeMethods.SHAppBarMessage(NativeMethods.ABM_GETSTATE, ref data);
+        return (state & NativeMethods.ABS_AUTOHIDE) != 0;
+    }
+
+    /// <summary>
+    /// 把任务栏恢复到「常驻显示」状态：先让窗口可见，再清掉自动隐藏位，
+    /// 最后把被 Shell 在自动隐藏时收起的子窗口（开始按钮、图标列表）逐个显示回来。
+    /// </summary>
+    private static void RestoreTaskbar(IntPtr taskbar)
+    {
+        NativeMethods.ShowWindow(taskbar, NativeMethods.SW_SHOW);
+        SetState(taskbar, NativeMethods.ABS_ALWAYSONTOP);
+        ShowChildren(taskbar);
+    }
+
+    /// <summary>
+    /// 把任务栏容器里所有隐藏的子窗口显示回来。
+    /// 目标就是「开始按钮」「任务栏图标列表」这类被 Shell 在自动隐藏时收起来的子窗口；
+    /// 托盘（TrayNotifyWnd）本来就没藏，重复 SW_SHOW 无副作用。
+    /// </summary>
+    private static void ShowChildren(IntPtr taskbar)
+    {
+        NativeMethods.EnumChildWindows(taskbar, (child, _) =>
+        {
+            // EnumChildWindows 枚举到的句柄都是有效的，直接看可见性即可
+            if (!NativeMethods.IsWindowVisible(child))
+            {
+                NativeMethods.ShowWindow(child, NativeMethods.SW_SHOW);
+            }
+            return true;
+        }, IntPtr.Zero);
+    }
+}

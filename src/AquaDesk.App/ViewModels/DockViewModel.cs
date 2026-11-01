@@ -12,6 +12,35 @@ public sealed class DockViewModel : INotifyPropertyChanged
 {
     private readonly List<DockItemConfig> _configs = new();
 
+    private int _previewSlotLimit = WindowPreviewService.DefaultPreviewSlots;
+
+    /// <summary>
+    /// 预览区当前能放几格（含末尾的「全部窗口」入口）。
+    /// 由 DockWindow 按 Dock 可用宽度算出来塞进来 —— 宽度只有它知道。
+    /// </summary>
+    public int PreviewSlotLimit
+    {
+        get => _previewSlotLimit;
+        set
+        {
+            var clamped = Math.Clamp(value, 3, WindowPreviewService.MaxPreviewSlots);
+            if (clamped == _previewSlotLimit) return;
+
+            _previewSlotLimit = clamped;
+            App.Log($"Dock：预览格数改为 {clamped}", null);
+
+            // 故意在这里**不**重建预览集合。
+            // setter 是从 DockWindow.UpdateWindowWidth 里调的，重建会改 Items，
+            // 而 Items 一变又回头触发宽度计算 —— 容易绕成环。
+            // 交给下一次窗口轮询（≤800ms）自然按新格数重建，宽度也随之更新。
+        }
+    }
+
+    /// <summary>
+    /// 按应用分好组的全部窗口（不截断）。「全部窗口」菜单拿它列出被折叠的应用。
+    /// </summary>
+    public IReadOnlyList<WindowGroup> WindowGroups { get; private set; } = Array.Empty<WindowGroup>();
+
     private const string SystemBrand = "Brand";
     private const string SystemWindows = "Windows";
     private const string SystemLaunchpad = "Launchpad";
@@ -133,6 +162,9 @@ public sealed class DockViewModel : INotifyPropertyChanged
     /// 所以数量变化不影响「用户图标」的索引换算。
     /// </summary>
     private readonly List<DockItem> _previews = new();
+
+    /// <summary>预览区末尾的「全部窗口」入口；没有折叠时为 null。</summary>
+    private DockItem? _overflowItem;
 
     public IReadOnlyList<DockItem> Previews => _previews;
 
@@ -296,17 +328,63 @@ public sealed class DockViewModel : INotifyPropertyChanged
 
     // ---------------- 重建 ----------------
 
+    private bool _iconRetryDone;
+
     private void Rebuild()
     {
         Items.Clear();
 
+        var missing = 0;
+
         foreach (var config in _configs)
         {
             var item = CreateItem(config);
-            if (item is not null) Items.Add(item);
+            if (item is null) continue;
+
+            Items.Add(item);
+            if (item.IsApp && item.Icon is null) missing++;
         }
 
         AppendTail();
+
+        // 图标取不到，多半是「exe 正被自己更新占用 / Shell 缓存还没就绪」这种临时状态，
+        // 隔一会儿再取往往就有了。只重试一次：路径真失效时反复重建整行没有意义。
+        if (missing > 0 && !_iconRetryDone) ScheduleIconRetry(missing);
+    }
+
+    /// <summary>延迟重建一次，专治「启动瞬间图标空白、过一会儿自己好」的情况。</summary>
+    private void ScheduleIconRetry(int missing)
+    {
+        _iconRetryDone = true;
+        App.Log($"Dock：{missing} 个图标没取到，1.5 秒后重试", null);
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher is null) return;
+
+        // 用 DispatcherTimer 而不是 Task.Run：重建会动 ObservableCollection，
+        // 必须在 UI 线程上做，省得再套一层 BeginInvoke。
+        var timer = new System.Windows.Threading.DispatcherTimer(
+            TimeSpan.FromMilliseconds(1500),
+            System.Windows.Threading.DispatcherPriority.Background,
+            (_, _) => { },
+            dispatcher);
+
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+
+            var still = 0;
+            foreach (var item in Items)
+            {
+                if (item.IsApp && item.Icon is null) still++;
+            }
+
+            if (still > 0) App.Log($"Dock：重试后仍有 {still} 个图标取不到（显示首字兜底）", null);
+
+            Rebuild();
+        };
+
+        timer.Start();
     }
 
     /// <summary>
@@ -315,11 +393,14 @@ public sealed class DockViewModel : INotifyPropertyChanged
     /// </summary>
     private void AppendTail()
     {
-        if (_previews.Count > 0)
+        if (_previews.Count > 0 || _overflowItem is not null)
         {
             Items.Add(DockItem.CreateSeparator());
 
             foreach (var preview in _previews) Items.Add(preview);
+
+            // 折叠了才有入口，排在最后一张预览后面
+            if (_overflowItem is not null) Items.Add(_overflowItem);
 
             if (Settings.ShowTrashIcon)
             {
@@ -352,16 +433,26 @@ public sealed class DockViewModel : INotifyPropertyChanged
     }
 
     /// <summary>按应用合并后的一个预览组：同一个 exe 的所有窗口共用一张预览。</summary>
-    private sealed class PreviewGroup
+    public sealed class WindowGroup
     {
-        public PreviewGroup(string key, OpenWindow primary)
+        public WindowGroup(string key, OpenWindow primary)
         {
             Key = key;
             Primary = primary;
             Windows.Add(primary);
+
+            // 应用名取 exe 文件名（"Code.exe" → "Code"），拿不到就退回窗口标题。
+            // 菜单里按应用分组显示时用它当分组标题。
+            var exe = Path.GetFileNameWithoutExtension(primary.ExePath);
+            AppName = string.IsNullOrWhiteSpace(exe)
+                ? (string.IsNullOrWhiteSpace(primary.Title) ? "（未知应用）" : primary.Title)
+                : exe;
         }
 
         public string Key { get; }
+
+        /// <summary>菜单里显示的应用名。</summary>
+        public string AppName { get; }
 
         /// <summary>代表窗口：组里最早启动的那个，缩略图 / 右键菜单都认它。</summary>
         public OpenWindow Primary { get; }
@@ -380,15 +471,18 @@ public sealed class DockViewModel : INotifyPropertyChanged
         // 设置里关掉了预览区：清空并撤掉那两条分隔线
         if (!Settings.ShowWindowPreviews)
         {
-            if (_previews.Count == 0) return false;
+            WindowGroups = Array.Empty<WindowGroup>();
+
+            if (_previews.Count == 0 && _overflowItem is null) return false;
 
             _previews.Clear();
+            _overflowItem = null;
             RebuildTail();
             return true;
         }
 
         // 分组：exe 读不到的（提权进程偶尔会这样）按句柄单独一组，别误合并
-        var groups = new List<PreviewGroup>();
+        var groups = new List<WindowGroup>();
 
         foreach (var window in windows)
         {
@@ -397,15 +491,27 @@ public sealed class DockViewModel : INotifyPropertyChanged
                 : window.ExePath.ToLowerInvariant();
 
             var group = groups.Find(g => g.Key == key);
-            if (group is null) groups.Add(new PreviewGroup(key, window));
+            if (group is null) groups.Add(new WindowGroup(key, window));
             else group.Windows.Add(window);
         }
 
-        var wanted = groups.Take(WindowPreviewService.MaxPreviews).ToList();
+        WindowGroups = groups;
 
-        // 集合没变的判定：代表窗口一样 + 每组窗口数一样。
+        // 可见格数是按 Dock 可用宽度算的。放不下时留最后一格给「全部窗口」入口，
+        // 其余折叠进去 —— 与其什么都不显示，不如给个明确能点开的去处。
+        var slots = Math.Max(1, _previewSlotLimit);
+        var hasOverflow = groups.Count > slots;
+
+        var wanted = hasOverflow
+            ? groups.Take(slots - 1).ToList()
+            : groups.Take(slots).ToList();
+
+        var hiddenApps = groups.Count - wanted.Count;
+
+
+        // 集合没变的判定：代表窗口一样 + 每组窗口数一样 + 折叠状态一样。
         // 组里开/关一个非代表窗口也会改变窗口数，走重建（预览内容确实变了）。
-        var sameSets = _previews.Count == wanted.Count;
+        var sameSets = _previews.Count == wanted.Count && _overflowItem is null == !hasOverflow;
 
         if (sameSets)
         {
@@ -429,6 +535,9 @@ public sealed class DockViewModel : INotifyPropertyChanged
                 _previews[i].Name = wanted[i].Primary.Title;
             }
 
+            // 折叠数量可能变了（开了/关了一个应用），角标就地更新，不重建
+            if (_overflowItem is not null) _overflowItem.WindowCount = hiddenApps;
+
             return false;
         }
 
@@ -449,6 +558,9 @@ public sealed class DockViewModel : INotifyPropertyChanged
                 group.Windows.Count,
                 group.Windows.Select(w => (w.Handle, w.Title)).ToList()));
         }
+
+        // 折叠了才给入口。没折叠时不摆一个永远用不上的格子。
+        _overflowItem = hasOverflow ? DockItem.CreateWindowList(hiddenApps) : null;
 
         RebuildTail();
         return true;

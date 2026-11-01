@@ -18,10 +18,17 @@ public sealed record OpenWindow(IntPtr Handle, string Title, string ExePath, Dat
 /// </summary>
 public static class WindowPreviewService
 {
-    /// <summary>预览区最多放几张卡片。按「应用」合并后仍以此封顶，太多 Dock 会被撑得老长。</summary>
-    public const int MaxPreviews = 6;
+    /// <summary>
+    /// 预览区硬上限。可见格数按 Dock 可用宽度动态算（见 DockViewModel.PreviewSlotLimit），
+    /// 但再宽也不超过这个数 —— 一屏同时抓太多缩略图，PrintWindow 的开销顶不住，
+    /// 而且预览区太宽会把应用图标挤到两边。
+    /// </summary>
+    public const int MaxPreviewSlots = 6;
 
-    /// <summary>枚举时最多收这么多个候选，排序后再截到 MaxPreviews。</summary>
+    /// <summary>还没算过可用宽度时的默认格数（首次布局前用）。</summary>
+    public const int DefaultPreviewSlots = 6;
+
+    /// <summary>枚举时最多收这么多个候选，排序后由预览区分组取用。</summary>
     private const int MaxScan = 60;
 
     /// <summary>

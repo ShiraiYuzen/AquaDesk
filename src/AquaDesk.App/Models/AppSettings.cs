@@ -9,9 +9,9 @@ namespace AquaDesk.Models;
 
 /// <summary>
 /// 界面风格。
-/// Liquid = 液态玻璃（折射 + 多层高光，默认）；
+/// Liquid = 液态玻璃 —— **已下架**，只为读得懂老配置而保留枚举值，读到就归到 LiquidClear；
 /// Classic = 最初 0.01 的样子；
-/// LiquidClear = 液态透明玻璃：中间透、色散彩虹边、轻微折射。
+/// LiquidClear = 液态透明玻璃：中间透、色散彩虹边、轻微折射（默认）。
 /// </summary>
 public enum DockStyle
 {
@@ -74,6 +74,12 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool _allowStyleSwitch;
     private double _glassOpacity = 0.26;
     private double _iconSize = 52;
+
+    /// <summary>
+    /// 图标太多时的自动收缩系数，由 DockWindow 按屏幕可用跨度现算现设。
+    /// 不持久化：换显示器 / 改分辨率 / 删掉几个图标都应该重新算，不该被上次的值绑死。
+    /// </summary>
+    private double _autoShrinkScale = 1;
     private double _iconGap = 6;
     private double _cornerRadius = 26;
     private double _magnifyMaxScale = 1.55;
@@ -175,8 +181,8 @@ public sealed class AppSettings : INotifyPropertyChanged
         set => Style = value switch
         {
             (int)DockStyle.Classic => DockStyle.Classic,
-            (int)DockStyle.LiquidClear => DockStyle.LiquidClear,
-            _ => DockStyle.Liquid
+            // 「液态玻璃」这个外观已经下架，老配置读到 0（Liquid）时落到液态透明玻璃
+            _ => DockStyle.LiquidClear
         };
     }
 
@@ -288,7 +294,29 @@ public sealed class AppSettings : INotifyPropertyChanged
     /// 布局里所有派生值都从它算，改一处全跟着变。
     /// </summary>
     [JsonIgnore]
-    public double ScaledIconSize => _iconSize * _uiScale;
+    public double ScaledIconSize => _iconSize * _uiScale * _autoShrinkScale;
+
+    /// <summary>
+    /// 图标数量超出屏幕可用跨度时按比例整排缩小，保证最后一个图标也在屏幕内。
+    /// 1 = 不缩；下限 0.35 是「再小就认不出图标了」的那条线，触底后宁可溢出。
+    /// </summary>
+    [JsonIgnore]
+    public double AutoShrinkScale
+    {
+        get => _autoShrinkScale;
+        set
+        {
+            var clamped = Clamp(value, 0.35, 1);
+
+            // 抖动的来源：布局变化会再次触发重算，浮点误差必须挡掉，否则每帧都重排
+            if (Math.Abs(clamped - _autoShrinkScale) < 0.002) return;
+
+            _autoShrinkScale = clamped;
+            OnPropertyChanged(nameof(AutoShrinkScale));
+            OnPropertyChanged(nameof(ScaledIconSize));
+            RaiseDerived();
+        }
+    }
 
     /// <summary>
     /// 按屏幕物理分辨率推一个默认缩放，同时照顾宽高比。

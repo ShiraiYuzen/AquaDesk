@@ -29,6 +29,12 @@ public enum DockItemKind
     /// <summary>一个打开中的窗口的预览（点一下切过去）。</summary>
     Window,
 
+    /// <summary>
+    /// 预览区末尾的「全部窗口」入口。应用多到可见格数放不下时出现，
+    /// 点开是「应用 → 窗口」两级菜单，把被折叠的都捞回来。
+    /// </summary>
+    WindowList,
+
     /// <summary>分隔线，把应用和废纸篓分开。</summary>
     Separator,
 
@@ -64,6 +70,23 @@ public sealed class DockItem : INotifyPropertyChanged
         Kind = kind;
         Children = children ?? Array.Empty<DockItem>();
         WindowHandle = windowHandle;
+        Initial = GetInitial(name);
+    }
+
+    /// <summary>
+    /// 图标取不到时显示的兜底字符（名字首个字素）。
+    /// 正常情况下不该走到这里 —— 但 exe 被占用、商店应用、路径失效都可能让图标为空，
+    /// 留一个空格子用户完全看不出那是哪个程序。
+    /// </summary>
+    public string Initial { get; }
+
+    private static string GetInitial(string name)
+    {
+        var trimmed = name?.Trim();
+        if (string.IsNullOrEmpty(trimmed)) return "?";
+
+        // 取首个「字素簇」而不是首个 char：emoji / 组合字符被劈开会渲染成方块
+        return System.Globalization.StringInfo.GetNextTextElement(trimmed).ToUpperInvariant();
     }
 
     /// <summary>固定在最左边、不参与排序/删除/持久化的两个系统图标。</summary>
@@ -100,6 +123,16 @@ public sealed class DockItem : INotifyPropertyChanged
     public static DockItem CreateSeparator() => new(
         "分隔", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Separator);
 
+    /// <summary>
+    /// 预览区的「全部窗口」入口。hiddenApps 是被折叠、没显示成卡片的应用数，
+    /// 画在右上角角标上（所以它 1 也要显示，而普通预览 >1 才显示）。
+    /// </summary>
+    public static DockItem CreateWindowList(int hiddenApps) => new(
+        "全部窗口", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.WindowList)
+    {
+        WindowCount = hiddenApps
+    };
+
     public static DockItem CreateTrash() => new(
         "废纸篓", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Trash);
 
@@ -119,6 +152,8 @@ public sealed class DockItem : INotifyPropertyChanged
 
     public bool IsWindowPreview => Kind == DockItemKind.Window;
 
+    public bool IsWindowList => Kind == DockItemKind.WindowList;
+
     public bool IsSeparator => Kind == DockItemKind.Separator;
 
     public bool IsTrash => Kind == DockItemKind.Trash;
@@ -132,9 +167,10 @@ public sealed class DockItem : INotifyPropertyChanged
 
     /// <summary>
     /// 能不能拖动排序。系统图标也能拖（它们现在排在 dock.json 里），
-    /// 分隔线和废纸篓钉死在尾部；窗口预览是临时的、顺序按启动时间排，也不该拖。
+    /// 分隔线和废纸篓钉死在尾部；窗口预览 / 全部窗口入口是临时的，也不该拖。
     /// </summary>
-    public bool CanDrag => Kind is not (DockItemKind.Separator or DockItemKind.Trash or DockItemKind.Window);
+    public bool CanDrag => Kind is not (DockItemKind.Separator or DockItemKind.Trash
+        or DockItemKind.Window or DockItemKind.WindowList);
 
     /// <summary>没有进程可查的项（系统图标 / 分隔线 / 废纸篓 / 窗口预览）。</summary>
     public bool IsPinned => Kind is not (DockItemKind.App or DockItemKind.Folder);
@@ -161,7 +197,11 @@ public sealed class DockItem : INotifyPropertyChanged
     }
 
     /// <summary>要不要显示「合并了 N 个窗口」的角标。</summary>
-    public bool ShowWindowCount => _windowCount > 1;
+    /// <summary>
+    /// 右上角显示数字。普通预览只在合并了多个窗口时才有意义（=1 没信息量）；
+    /// 「全部窗口」入口的数字就是折叠了几个，所以 1 也要显示。
+    /// </summary>
+    public bool ShowWindowCount => _windowCount > (IsWindowList ? 0 : 1);
 
     /// <summary>合并组里每个窗口的（句柄, 标题），点预览弹列表用；单窗口预览为空。</summary>
     public IReadOnlyList<(IntPtr Handle, string Title)> GroupWindows { get; set; } =

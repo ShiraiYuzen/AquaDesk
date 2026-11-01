@@ -3,7 +3,7 @@
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前版本：0.6.5** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
+**当前版本：0.7.0** · 单文件 exe，自包含，约 69.6 MB · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
 ![Build](https://github.com/ShiraiYuzen/AquaDesk/actions/workflows/build.yml/badge.svg)
@@ -61,6 +61,11 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | [v0.6.3](versions/v0.6.3/README.md) | 2026-11-01 | 可验证的作者身份 | 发布清单签名（`.sig`）、一条命令验签 `verify_release.ps1`、指纹作为信任锚点 |
 | [v0.6.4](versions/v0.6.4/README.md) | 2026-11-01 | 签名私钥可备份 | 换用可导出证书并离线备份 `.pfx`；验签脚本支持两代指纹白名单 |
 | [v0.6.5](versions/v0.6.5/README.md) | 2026-11-01 | Dock 显示修复 | 图标过多时整排等比缩小；图标取不到自动重试 + 首字兜底 |
+| [v0.6.6](versions/v0.6.6/README.md) | 2026-11-01 | 预览动态格数 | 按可用宽度定格、溢出折叠进「全部窗口」入口 |
+| [v0.6.7](versions/v0.6.7/README.md) | 2026-11-01 | 下架液态玻璃 | 系统图标纯白简约、界面风格只剩两种 |
+| [v0.6.8](versions/v0.6.8/README.md) | 2026-11-01 | 预览上限 6 格 | 预览区最多 6 个应用，第 7 个起折叠 |
+| [v0.6.9](versions/v0.6.9/README.md) | 2026-11-02 | 输入法全列出 | 讯飞/微信/微软拼音全显示，同语言直切 |
+| [v0.7.0](versions/v0.7.0/README.md) | 2026-11-02 | 检查更新 | 一键下载安装、验签、跳过版本、静默检查 |
 
 完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -87,6 +92,11 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | v0.6.3 | ✓ 见 Releases（附 `SHA256SUMS.txt` + `.sig` + `SIGNING.txt` + 验签脚本） | ✓ 完整源码（`versions/v0.6.3/src/`） |
 | v0.6.4 | ✓ 见 Releases（同上，指纹换为 `62DF52A9…`） | ✓ 完整源码（`versions/v0.6.4/src/`） |
 | v0.6.5 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.5/src/`） |
+| v0.6.6 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.6/src/`） |
+| v0.6.7 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.7/src/`） |
+| v0.6.8 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.8/src/`） |
+| v0.6.9 | ✓ 见 Releases | ✓ 完整源码（`versions/v0.6.9/src/`） |
+| v0.7.0 | ✓ 见 Releases（附验签四件套 + `.cer`） | ✓ 完整源码（`versions/v0.7.0/src/`） |
 
 > **为什么旧版本没有源码**：项目从第一行代码到 0.3.2 一直没有用版本控制，
 > 源码只有一份持续演进的副本，旧版本构建完就被覆盖了。
@@ -106,7 +116,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 把 Release 里的四个文件放同一目录：
 
 ```
-AquaDesk-0.6.5.exe
+AquaDesk-0.7.0.exe
 SHA256SUMS.txt
 SHA256SUMS.txt.sig
 verify_release.ps1
@@ -150,10 +160,10 @@ BF1DDC33C869D5C08E4417777F88E7041692390F    ← v0.6.2 ~ v0.6.3
 
 ```powershell
 # 1. 哈希：和 SHA256SUMS.txt 里那一行对比
-Get-FileHash .\AquaDesk-0.6.5.exe -Algorithm SHA256 | Format-List
+Get-FileHash .\AquaDesk-0.7.0.exe -Algorithm SHA256 | Format-List
 
 # 2. 指纹：应等于上面那串
-(Get-AuthenticodeSignature .\AquaDesk-0.6.5.exe).SignerCertificate.Thumbprint
+(Get-AuthenticodeSignature .\AquaDesk-0.7.0.exe).SignerCertificate.Thumbprint
 ```
 
 ```bash
@@ -235,7 +245,7 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
 ├─ .github/workflows/build.yml  CI：构建（并通过 SignPath 签名，若已配置）
 ├─ signpath/
 │  └─ artifact-configuration.xml  签名产物配置（单文件 PE + Authenticode）
-├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.6.5）
+├─ src/AquaDesk.App/          WPF 源码（.NET 8，0.7.0）
 └─ versions/
    ├─ v0.0.1/README.md
    ├─ v0.2.0/README.md       发布说明（exe 见 Releases）
@@ -252,7 +262,12 @@ AquaDesk.exe --restore                   # 强制恢复被隐藏的任务栏（�
    ├─ v0.6.2/
    ├─ v0.6.3/
    ├─ v0.6.4/
-   └─ v0.6.5/
+   ├─ v0.6.5/
+   ├─ v0.6.6/
+   ├─ v0.6.7/
+   ├─ v0.6.8/
+   ├─ v0.6.9/
+   └─ v0.7.0/
       ├─ src/                该版本的完整源码
       └─ README.md
 ```

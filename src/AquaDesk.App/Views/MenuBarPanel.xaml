@@ -208,7 +208,12 @@
                 </Border>
             </Grid>
 
-            <StackPanel x:Name="KeyboardList" />
+            <!-- 输入法可能有好几个（微软拼音 / 搜狗 / 讯飞 / 微信…），超过 5 行就滚动，
+                 不然面板会一路长到屏幕外 -->
+            <ScrollViewer MaxHeight="248" VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled">
+                <StackPanel x:Name="KeyboardList" />
+            </ScrollViewer>
 
             <Border Height="1" Background="#1FFFFFFF" Margin="0,8,0,0" />
 
