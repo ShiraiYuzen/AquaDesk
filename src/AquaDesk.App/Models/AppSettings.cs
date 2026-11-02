@@ -204,6 +204,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         {
             if (!Set(ref _glassOpacity, Clamp(value, 0.05, 0.95))) return;
             OnPropertyChanged(nameof(TintOpacity));
+            OnPropertyChanged(nameof(LiquidBaseOpacity));
         }
     }
 
@@ -217,6 +218,19 @@ public sealed class AppSettings : INotifyPropertyChanged
     [JsonIgnore]
     public double TintOpacity =>
         Math.Min(1, _glassOpacity * (_style == DockStyle.Classic ? 2.1 : 1.0));
+
+    /// <summary>
+    /// 液态透明玻璃那层自绘底色的实际不透明度。
+    ///
+    /// 默认外观（LiquidClear）不画 TintOpacity 那层（ShowsTint=false），
+    /// 而是用自己的渐变底色，且这层 alpha 原来是写死的 —— 所以「底板不透明度」
+    /// 滑块在默认外观下完全无效。这里把 GlassOpacity 映射到这一层：
+    /// 以 0.26（默认值）为锚点返回 0.4，配合把渐变 alpha 放大 2.5 倍，
+    /// 等效于原来的观感；往左更透、往右更实，整段滑块都有反馈。
+    /// </summary>
+    [JsonIgnore]
+    public double LiquidBaseOpacity =>
+        Clamp(0.4 + (_glassOpacity - 0.26) * 0.87, 0.05, 1.0);
 
     /// <summary>Dock 底板圆角半径。</summary>
     public double CornerRadius

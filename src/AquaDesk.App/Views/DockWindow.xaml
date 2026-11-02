@@ -262,12 +262,13 @@
             <Rectangle RadiusX="{Binding Settings.CornerRadius}"
                        RadiusY="{Binding Settings.CornerRadius}"
                        Visibility="{Binding Settings.IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       Opacity="{Binding Settings.LiquidBaseOpacity}"
                        IsHitTestVisible="False">
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0.12,1">
-                        <GradientStop Color="#3D1B2540" Offset="0" />
-                        <GradientStop Color="#4D121A2E" Offset="0.55" />
-                        <GradientStop Color="#6605080F" Offset="1" />
+                        <GradientStop Color="#981B2540" Offset="0" />
+                        <GradientStop Color="#C0121A2E" Offset="0.55" />
+                        <GradientStop Color="#FF05080F" Offset="1" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
