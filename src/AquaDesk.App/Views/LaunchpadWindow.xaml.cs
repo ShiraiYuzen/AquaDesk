@@ -974,8 +974,7 @@ public partial class LaunchpadWindow : Window
                 continue;
             }
 
-            if (_entries.Any(x => string.Equals(x.Target, file, StringComparison.OrdinalIgnoreCase))) continue;
-            if (_apps.Any(x => string.Equals(x.Target, file, StringComparison.OrdinalIgnoreCase))) continue;
+            if (IsAlreadyPresent(file)) continue;
 
             _hidden.Remove(file);
 
@@ -993,6 +992,52 @@ public partial class LaunchpadWindow : Window
 
         SaveLayout();
         ApplyFilter();
+    }
+
+    /// <summary>
+    /// 启动台里是否已经有这个应用。
+    /// 从桌面拖进来的快捷方式和开始菜单里的那条路径不同（两个不同的 .lnk），
+    /// 只比路径会漏掉，所以按「真实 exe」比对 —— 指向同一个程序就算已有，不重复添加。
+    /// </summary>
+    private bool IsAlreadyPresent(string droppedFile)
+    {
+        var droppedTarget = ResolveRealTarget(droppedFile);
+
+        bool Match(string? target)
+        {
+            if (string.IsNullOrEmpty(target)) return false;
+            if (string.Equals(target, droppedFile, StringComparison.OrdinalIgnoreCase)) return true;
+
+            var real = ResolveRealTarget(target);
+            return !string.IsNullOrEmpty(real)
+                && string.Equals(real, droppedTarget, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var entry in _entries)
+        {
+            if (entry.IsFolder)
+            {
+                if (entry.Items.Any(i => Match(i.Target))) return true;
+            }
+            else if (Match(entry.Target))
+            {
+                return true;
+            }
+        }
+
+        return _apps.Any(a => Match(a.Target));
+    }
+
+    /// <summary>把 .lnk 解到它指向的真实 exe；解不到（或本来就是 exe）就返回原路径。</summary>
+    private static string ResolveRealTarget(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return path;
+        if (string.Equals(Path.GetExtension(path), ".lnk", StringComparison.OrdinalIgnoreCase))
+        {
+            var resolved = ShortcutResolver.ResolveTargetPath(path);
+            if (!string.IsNullOrEmpty(resolved)) return resolved;
+        }
+        return path;
     }
 
     // ---------------- 键盘 / 鼠标 ----------------
