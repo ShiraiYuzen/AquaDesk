@@ -15,6 +15,14 @@ public partial class App : Application
     private const string MutexName = @"Global\AquaDesk.SingleInstance";
 
     private Mutex? _singleInstance;
+
+    /// <summary>
+    /// 本实例是否已经接管了系统状态（任务栏 / 桌面图标）。只有真正跑到应用设置的那份
+    /// 实例才置 true；开机自启双触发时被判为「同一份已在跑」而提前退出的实例保持 false，
+    /// 退出时就不去动任务栏（否则会把主实例藏起来的任务栏又放出来）。
+    /// </summary>
+    private static bool _ownsSystemState;
+
     private TrayIcon? _tray;
     private ClockPillWindow? _clock;
     private MediaSessionService? _media;
@@ -81,6 +89,10 @@ public partial class App : Application
     /// </summary>
     private static void RestoreSystemState(string reason)
     {
+        // 本实例没接管过系统状态（例如开机自启双触发时被判为「同一份已在跑」而提前
+        // 退出的那个实例），就不要去动任务栏 —— 否则会把主实例藏起来的任务栏放出来。
+        if (!_ownsSystemState) return;
+
         try
         {
             TaskbarService.SetVisible(true);
@@ -201,6 +213,45 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// 是否已经有「同一份 exe」（同一路径）在跑。用于区分两种「已有实例」：
+    /// - 同一份（开机自启双触发 / 重复双击同一个 exe）→ 应静默退出，不要接管；
+    /// - 另一个版本 / 框架（路径不同）→ 才走接管（升级、跨框架切换）。
+    /// </summary>
+    private static bool IsSameExeRunning(string? selfPath)
+    {
+        if (string.IsNullOrWhiteSpace(selfPath)) return false;
+
+        var self = NetFxShims.ProcessId;
+        foreach (var process in Process.GetProcesses())
+        {
+            try
+            {
+                if (process.Id == self) continue;
+                if (!process.ProcessName.StartsWith("AquaDesk", StringComparison.OrdinalIgnoreCase)) continue;
+
+                string? path = null;
+                try { path = process.MainModule?.FileName; } catch { /* 读不到就跳过 */ }
+
+                if (!string.IsNullOrEmpty(path)
+                    && string.Equals(path, selfPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // 单个进程读不到不影响判断其它进程
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// 处理 <c>--wifi-on</c> / <c>--wifi-off</c>：这是被主进程用管理员权限拉起来的自己，
     /// 只改一次射频状态就退出，退出码 0 表示成功。
     /// </summary>
@@ -272,9 +323,27 @@ public partial class App : Application
             // 新进程被互斥锁静默挡回去、旧进程还占着屏幕，用户以为「重启过了」，
             // 实际跑的还是旧版本，改了什么都看不到。
             //
-            // 现在改成「新版本接管」：把旧进程请走，自己接手。
+            // 关键区分：跑的是「同一份 exe」还是「另一个版本/框架」。
+            // - 同一份 exe（开机自启的 Run 键 + 计划任务同时触发，或重复双击）：
+            //   直接静默退出，不要接管。否则第二个会把第一个杀掉再接手，用户看到的就是
+            //   「自启后过一会自己退出、又重启」。
+            // - 不同路径（升级后的新 exe / 跨框架切换）：才接管。
+            var selfPath = NetFxShims.ProcessPath;
+            if (string.IsNullOrEmpty(selfPath))
+            {
+                try { selfPath = Process.GetCurrentProcess().MainModule?.FileName; } catch { }
+            }
+
+            if (IsSameExeRunning(selfPath))
+            {
+                Log("检测到同一份 AquaDesk 已在运行，本实例直接退出（不接管）", null);
+                Shutdown();
+                return;
+            }
+
+            // 不同版本接管：把旧进程请走，自己接手。
             // 先 CloseMainWindow 让它走 OnExit 把任务栏还原，不走再强杀。
-            Log("检测到已运行的实例，开始接管", null);
+            Log("检测到不同版本/路径的实例，开始接管", null);
             TakeOverRunningInstances();
 
             _singleInstance = AcquireMutex(TimeSpan.FromSeconds(6));
@@ -285,6 +354,9 @@ public partial class App : Application
                 return;
             }
         }
+
+        // 从这里开始本实例是唯一的运行实例，负责在退出时恢复系统状态
+        _ownsSystemState = true;
 
         base.OnStartup(e);
 
@@ -489,8 +561,10 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        // 退出时一定要把任务栏还回去，否则用户连开始菜单都点不到
-        TaskbarService.SetVisible(true);
+        // 只在本实例确实接管过系统状态时才还原；开机自启双触发的「重复实例」没碰过
+        // 任务栏，退出时不能去放它（会把主实例藏起来的任务栏放出来）。
+        if (_ownsSystemState)
+            TaskbarService.SetVisible(true);
 
         // 谁触发的退出？把调用栈留下来，方便查「自己没了」这类问题
         Log($"正常退出（ExitCode={e.ApplicationExitCode}）\n{Environment.StackTrace}", null);
