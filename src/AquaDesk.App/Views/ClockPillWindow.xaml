@@ -70,12 +70,13 @@
             <!-- 液态透明玻璃：极淡底色 + 顶部镜面高光 + 银白轮廓 + 细微色散 -->
             <Rectangle RadiusX="15" RadiusY="15"
                        Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
+                       Opacity="{Binding LiquidBaseOpacity}"
                        IsHitTestVisible="False">
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="0.12,1">
-                        <GradientStop Color="#3D1B2540" Offset="0" />
-                        <GradientStop Color="#4D121A2E" Offset="0.55" />
-                        <GradientStop Color="#6605080F" Offset="1" />
+                        <GradientStop Color="#981B2540" Offset="0" />
+                        <GradientStop Color="#C0121A2E" Offset="0.55" />
+                        <GradientStop Color="#FF05080F" Offset="1" />
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
