@@ -154,7 +154,7 @@ public partial class LaunchpadWindow : Window
                     foreach (var target in entry.Items)
                     {
                         if (target is null) continue;
-                        if (!byTarget.TryGetValue(target, out var item)) continue;
+                        if (!TryResolveItem(target, byTarget, out var item)) continue;
                         if (!used.Add(target)) continue;
                         items.Add(item);
                     }
@@ -169,7 +169,7 @@ public partial class LaunchpadWindow : Window
                     }
                 }
                 else if (entry.Target is not null
-                         && byTarget.TryGetValue(entry.Target, out var app)
+                         && TryResolveItem(entry.Target, byTarget, out var app)
                          && used.Add(entry.Target))
                 {
                     _entries.Add(LaunchpadEntry.FromApp(app));
@@ -184,6 +184,35 @@ public partial class LaunchpadWindow : Window
             if (_hidden.Contains(app.Target)) continue;
             _entries.Add(LaunchpadEntry.FromApp(app));
         }
+    }
+
+    /// <summary>
+    /// 按 target 解析出一个启动台条目。
+    /// 优先用开始菜单扫描到的 app；扫不到（比如用户从桌面拖进来的 .lnk/.exe）时，
+    /// 只要文件还在，就现场按文件名 + 图标重建一个 —— 否则重开启动台时这些手加的会被丢掉。
+    /// </summary>
+    private static bool TryResolveItem(
+        string target, Dictionary<string, LaunchpadItem> byTarget, out LaunchpadItem item)
+    {
+        if (byTarget.TryGetValue(target, out var known))
+        {
+            item = known;
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(target) && (File.Exists(target) || Directory.Exists(target)))
+        {
+            item = new LaunchpadItem
+            {
+                Name = Path.GetFileNameWithoutExtension(target),
+                Target = target,
+                Icon = IconExtractor.FromShortcut(target)
+            };
+            return true;
+        }
+
+        item = null!;
+        return false;
     }
 
     private void SaveLayout()
