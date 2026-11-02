@@ -622,9 +622,9 @@
                                                    Text="{Binding GlassOpacity, StringFormat={}{0:F2}}" />
                                     </Grid>
                                     <Slider Style="{StaticResource MacSlider}"
-                                            Minimum="0.05" Maximum="0.95" TickFrequency="0.01"
+                                            Minimum="0" Maximum="1" TickFrequency="0.01"
                                             Value="{Binding GlassOpacity, Mode=TwoWay}" />
-                                    <TextBlock Text="越低越透，0.05 时几乎只剩一层高光"
+                                    <TextBlock Text="越低越透，0 时完全透明（只剩高光）"
                                                Style="{StaticResource RowHint}" />
                                 </StackPanel>
 
@@ -753,7 +753,7 @@
                                                    Text="{Binding BottomMargin, StringFormat={}{0:F0} px}" />
                                     </Grid>
                                     <Slider Style="{StaticResource MacSlider}"
-                                            Minimum="0" Maximum="100" TickFrequency="1"
+                                            Minimum="0" Maximum="200" TickFrequency="1"
                                             Value="{Binding BottomMargin, Mode=TwoWay}" />
                                 </StackPanel>
                             </StackPanel>
