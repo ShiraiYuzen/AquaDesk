@@ -483,7 +483,10 @@ public partial class DockWindow : Window
             or nameof(AppSettings.IconGap)
             or nameof(AppSettings.BottomMargin))
         {
-            Height = _vm.Settings.WindowHeight;
+            // 不要先 Height = WindowHeight 再 UpdateWindowWidth —— 那样一次 tick 里 Height
+            // 会变两次（WindowHeight → WindowHeight+BottomMargin），窗口先按小高度贴一次、
+            // 再按大高度贴一次，拖「距屏幕边缘」时就上下抖。UpdateWindowWidth 内部已经
+            // 按 WindowHeight+BottomMargin 把 Height/Width 一次设好。
             UpdateWindowWidth();
             Dispatcher.BeginInvoke(PositionDock, System.Windows.Threading.DispatcherPriority.Loaded);
         }
