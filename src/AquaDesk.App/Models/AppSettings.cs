@@ -202,7 +202,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         get => _glassOpacity;
         set
         {
-            if (!Set(ref _glassOpacity, Clamp(value, 0.05, 0.95))) return;
+            if (!Set(ref _glassOpacity, Clamp(value, 0, 1.0))) return;
             OnPropertyChanged(nameof(TintOpacity));
             OnPropertyChanged(nameof(LiquidBaseOpacity));
         }
@@ -229,8 +229,18 @@ public sealed class AppSettings : INotifyPropertyChanged
     /// 等效于原来的观感；往左更透、往右更实，整段滑块都有反馈。
     /// </summary>
     [JsonIgnore]
-    public double LiquidBaseOpacity =>
-        Clamp(0.4 + (_glassOpacity - 0.26) * 0.87, 0.05, 1.0);
+    public double LiquidBaseOpacity
+    {
+        get
+        {
+            var g = _glassOpacity;
+            // 0 → 0（完全透明，只剩高光）；0.26（默认）→ 0.4（原观感）；0.95 及以上 → 1.0（最实）
+            var o = g <= 0.26
+                ? g / 0.26 * 0.4
+                : 0.4 + (g - 0.26) * 0.87;
+            return Clamp(o, 0.0, 1.0);
+        }
+    }
 
     /// <summary>Dock 底板圆角半径。</summary>
     public double CornerRadius
@@ -270,7 +280,7 @@ public sealed class AppSettings : INotifyPropertyChanged
         get => _bottomMargin;
         set
         {
-            if (!Set(ref _bottomMargin, Clamp(value, 0, 48))) return;
+            if (!Set(ref _bottomMargin, Clamp(value, 0, 200))) return;
             OnPropertyChanged(nameof(BottomMarginThickness));
             OnPropertyChanged(nameof(EdgeMarginThickness));
         }
