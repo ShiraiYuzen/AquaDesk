@@ -7,6 +7,21 @@ namespace AquaDesk.Services;
 /// <summary>查当前前台窗口属于哪个进程，用来判断 Dock 上哪个应用「正在被使用」。</summary>
 public static class WindowQuery
 {
+    public static HashSet<string> ReadRunningProcessNames()
+    {
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var process in Process.GetProcesses())
+        {
+            using (process)
+            {
+                try { names.Add(process.ProcessName); }
+                catch (InvalidOperationException) { } // 已经退出
+                catch (System.ComponentModel.Win32Exception) { } // 访问受限
+            }
+        }
+        return names;
+    }
+
     public static string? GetForegroundProcessName()
     {
         try

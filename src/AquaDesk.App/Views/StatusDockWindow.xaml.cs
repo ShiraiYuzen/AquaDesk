@@ -132,7 +132,6 @@ public partial class StatusDockWindow : Window
         // 回到应用里打字没反应（详见 NonActivatingWindow 的注释）
         NonActivatingWindow.Apply(this);
 
-        RefreshWifiIcon();
         Refresh();
         RefreshInputMethod();
 
@@ -141,12 +140,24 @@ public partial class StatusDockWindow : Window
 
         FollowDock();
 
-        _timer.Start();
-        _inputTimer.Start();
+        _timer.IsEnabled = _dock.IsVisible;
+        _inputTimer.IsEnabled = _dock.IsVisible;
     }
 
     /// <summary>Dock 藏起来的时候（托盘里切换显示），状态胶囊一起藏。</summary>
-    private void SyncDockVisibility() => Visibility = _dock.IsVisible ? Visibility.Visible : Visibility.Hidden;
+    private void SyncDockVisibility()
+    {
+        var visible = _dock.IsVisible;
+        Visibility = visible ? Visibility.Visible : Visibility.Hidden;
+        if (!IsLoaded) return;
+        _timer.IsEnabled = visible;
+        _inputTimer.IsEnabled = visible;
+        if (visible)
+        {
+            Refresh();
+            RefreshInputMethod();
+        }
+    }
 
     private void OnDockVisibilityChanged(object? sender, DependencyPropertyChangedEventArgs e) => SyncDockVisibility();
 
