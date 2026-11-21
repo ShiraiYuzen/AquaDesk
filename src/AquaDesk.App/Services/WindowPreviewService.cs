@@ -31,11 +31,14 @@ public static class WindowPreviewService
     /// <summary>枚举时最多收这么多个候选，排序后由预览区分组取用。</summary>
     private const int MaxScan = 60;
 
+    // 保留普通 4K / 超宽屏预览，限制 PrintWindow 的原尺寸临时位图（32bpp 约 36 MiB）。
+    private const long MaxCapturePixels = 4096L * 2304;
+
     /// <summary>
     /// 抓不出来的窗口记在这里，别每 2 秒重试一次 —— 日志会被刷爆，CPU 也白烧。
     /// 窗口集合变化（有窗口开关）时清空，给它们一次翻身机会。
     /// </summary>
-    private static readonly HashSet<IntPtr> Unsupported = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<IntPtr, byte> Unsupported = new();
 
     public static void ResetFailureCache() => Unsupported.Clear();
 
@@ -50,6 +53,7 @@ public static class WindowPreviewService
     public static List<OpenWindow> Enumerate()
     {
         var found = new List<OpenWindow>();
+        var visibleHandles = new HashSet<IntPtr>();
 
         NativeMethods.EnumWindows((hwnd, _) =>
         {
@@ -88,6 +92,7 @@ public static class WindowPreviewService
             // （0.4.5 之前这里按 pid 一刀切，设置窗口永远不出现在预览条里）
             if (OverlayZOrder.IsOverlay(hwnd)) return true;
 
+            visibleHandles.Add(hwnd);
             if (!FirstSeen.ContainsKey(hwnd)) FirstSeen[hwnd] = ++_seenCounter;
 
             var info = GetProcessInfo((int)processId);
@@ -96,6 +101,12 @@ public static class WindowPreviewService
 
             return true;
         }, IntPtr.Zero);
+
+        if (FirstSeen.Count > visibleHandles.Count)
+        {
+            foreach (var stale in FirstSeen.Keys.Where(h => !visibleHandles.Contains(h)).ToArray())
+                FirstSeen.Remove(stale);
+        }
 
         // 按「软件启动的先后」排。同进程开多个窗口时，用第一次被看到的顺序兜底。
         // 之后把哪个窗口调到前台都不会改变这个顺序 —— 排序只跟启动时间有关。
@@ -221,7 +232,7 @@ public static class WindowPreviewService
         if (IsCaptureForbidden(hwnd)) return null;
 
         if (NativeMethods.IsIconic(hwnd)) return null;
-        if (Unsupported.Contains(hwnd)) return null;
+        if (Unsupported.ContainsKey(hwnd)) return null;
 
         if (!NativeMethods.GetWindowRect(hwnd, out var rect)) return null;
 
@@ -230,7 +241,8 @@ public static class WindowPreviewService
 
         // 尺寸离谱的直接放弃，别去申请几十 MB 的位图
         if (sourceWidth < 8 || sourceHeight < 8) return null;
-        if (sourceWidth > 8000 || sourceHeight > 8000) return null;
+        if (sourceWidth > 8000 || sourceHeight > 8000 || (long)sourceWidth * sourceHeight > MaxCapturePixels)
+            return null;
 
         var screenDc = NativeMethods.GetDC(IntPtr.Zero);
         if (screenDc == IntPtr.Zero) return null;
@@ -255,7 +267,7 @@ public static class WindowPreviewService
             if (!NativeMethods.PrintWindow(hwnd, fullDc, NativeMethods.PW_RENDERFULLCONTENT)
                 && !NativeMethods.PrintWindow(hwnd, fullDc, 0))
             {
-                Unsupported.Add(hwnd);
+                Unsupported.TryAdd(hwnd, 0);
                 App.Log($"窗口预览：PrintWindow 失败，已跳过 hwnd={hwnd} size={sourceWidth}x{sourceHeight}", null);
                 return null;
             }
@@ -291,7 +303,7 @@ public static class WindowPreviewService
 
             if (NativeMethods.GetDIBits(smallDc, smallBitmap, 0, (uint)height, pixels, ref info, 0) == 0)
             {
-                Unsupported.Add(hwnd);
+                Unsupported.TryAdd(hwnd, 0);
                 App.Log($"窗口预览：GetDIBits 失败，已跳过 hwnd={hwnd}", null);
                 return null;
             }
