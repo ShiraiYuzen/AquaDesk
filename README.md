@@ -145,7 +145,9 @@ See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privac
 
 ## 许可证
 
-[MIT](LICENSE) · Copyright © 2026 ShiraiYuzen。
+[MIT License](LICENSE)
+
+Copyright © 2026 ShiraiYuzen。此许可适用于 DockSprig 原创项目源码。第三方依赖适用各自的许可。
 
 ## 致谢
 
