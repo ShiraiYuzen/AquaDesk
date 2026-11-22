@@ -73,6 +73,8 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 ### 下载运行
 
+下载前可查看 [Code signing policy](#code-signing-policy) 和 [Privacy policy](#privacy-policy)。
+
 到 [Releases](../../releases) 页面下载，两种形态二选一：
 
 | 产物 | 适合谁 | 说明 |
@@ -110,6 +112,21 @@ dotnet build -c Release
 ```powershell
 .\build.ps1
 ```
+
+## Code signing policy
+
+AquaDesk plans to use SignPath.io for Windows code signing with a certificate from SignPath Foundation, subject to approval and setup. The intended signing process uses artifacts built from this public repository by [GitHub Actions](../../actions). Each release signing request will require manual approval.
+
+- Maintainer, committer, and reviewer for this repository: [ShiraiYuzen](https://github.com/ShiraiYuzen).
+- Designated release signing approver: [ShiraiYuzen](https://github.com/ShiraiYuzen).
+
+### Privacy policy
+
+AquaDesk does not send telemetry or automatically upload crash reports. Settings and diagnostic logs are stored locally. The Dock and Launchpad use local app information, and window previews are generated on the device. When you enter a Wi-Fi password in AquaDesk, it is passed to Windows to configure the selected network.
+
+AquaDesk automatically checks for updates using GitHub Releases. If the primary request fails, it may use third-party mirrors. The servers handling update checks and downloads can see the source IP address and standard HTTP request headers, including the app's User-Agent. AquaDesk does not attach local settings, window previews, or diagnostic logs to update requests.
+
+See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) for how GitHub handles network requests. The backup services used by the updater are [ghproxy.net](https://ghproxy.net/), [gh-proxy.com](https://gh-proxy.com/), and, for some downloads in the `net48` build, [ghfast.top](https://ghfast.top/). These services handle their own requests under their own practices.
 
 ## 已知限制
 
