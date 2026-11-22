@@ -37,6 +37,14 @@
 | 适合场景 | 想显著降低内存 / 磁盘占用的机器 | 追求开箱即用、自动更新、免装运行时 |
 | 状态 | 实验分支，同步共用界面与性能改动 | 正式主线 |
 
+## 许可证
+
+[MIT License](LICENSE)
+
+Copyright © 2026 ShiraiYuzen。此许可涵盖由 ShiraiYuzen 拥有版权的项目源码。第三方材料适用各自的许可。
+
+`src/AquaDesk.App/Services/UpdateService.cs` 中源自 [GlassBoard-Source](https://github.com/llm147369/GlassBoard-Source) 的代码，如有，适用其权利人授予的许可。上游未明确授权的部分不包含在本项目的 MIT 授权中。
+
 ## 致谢
 
 - 一键自更新与 net48 兼容层（NetFxShims）参考自 **GlassBoard-Source**（克隆其仓库作为实现参考），感谢原作者。
