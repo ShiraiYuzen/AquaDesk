@@ -15,6 +15,18 @@
 
 ---
 
+## 效果图
+
+图中使用 DockSprig 的界面组件离屏渲染，只展示 Windows 自带应用和 DockSprig 控件。壁纸、时间、电量和系统状态均为演示内容。
+
+### Dock、时间胶囊与状态胶囊
+
+![透明玻璃 Dock、顶部时间胶囊和右侧状态胶囊](docs/screenshots/dock.png)
+
+### 启动台
+
+![使用 Windows 自带应用演示启动台网格](docs/screenshots/launchpad.png)
+
 ## 0.6.2 · 透明玻璃界面
 
 - Dock 和状态胶囊保留透出壁纸的玻璃底板，用细亮边模拟玻璃厚度，底板透明度仍可调。
