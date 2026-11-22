@@ -1,11 +1,9 @@
 # DockSprig（.NET Framework 4.8 版）
 
-> **原名 AquaDesk。** 从 0.6.2 起使用 DockSprig 名称，较早版本沿用 AquaDesk。
-
 这是 DockSprig 的 **net48 分支**：基于 .NET 8 源码改到 .NET Framework 4.8（运行时由系统提供、进程间共享，内存与磁盘占用更低）。
 
 ![Branch](https://img.shields.io/badge/branch-net48-orange)
-![Version](https://img.shields.io/badge/source-v0.6.2--net48-blue)
+![Version](https://img.shields.io/badge/source-v1.0.0--net48-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.8-512BD4)
 ![Size](https://img.shields.io/badge/zip-~0.7%20MB-informational)
@@ -14,7 +12,7 @@
 
 在相同主题和演示数据下，`net48` 的 Dock、时间胶囊、状态胶囊与启动台画面和 `main` 一致。查看 [主分支效果图](https://github.com/ShiraiYuzen/DockSprig/blob/main/README.md#效果图)。
 
-## 0.6.2 · 透明玻璃界面
+## 1.0.0 · 透明玻璃界面
 
 - Dock 和状态胶囊保留透出壁纸的玻璃底板，用细亮边模拟玻璃厚度，底板透明度仍可调。
 - 前台应用以水蓝短线标记，音量、网络、电源和输入法各用固定位置。
@@ -26,7 +24,7 @@
 
 下载前可查看 [Code signing policy](https://github.com/ShiraiYuzen/DockSprig#code-signing-policy) 和 [Privacy policy](https://github.com/ShiraiYuzen/DockSprig#privacy-policy)。
 
-- 发布列表：`https://github.com/ShiraiYuzen/DockSprig/releases`（找 tag 以 `-net48` 结尾的发布，如 `v0.6.1-net48`）
+- 发布列表：`https://github.com/ShiraiYuzen/DockSprig/releases`（找 tag 以 `-net48` 结尾的发布，如 `v1.0.0-net48`）
 - 解压 `DockSprig-net48-<版本>.zip` 后双击 `DockSprig.exe` 即可运行；目标机需已安装 **.NET Framework 4.8**。
 - 应用内「检查更新」会查找标签以 `-net48` 结尾的版本。发现新版本后，点击「打开发布页下载」获取 ZIP。
 

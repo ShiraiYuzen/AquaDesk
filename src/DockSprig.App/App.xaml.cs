@@ -455,8 +455,8 @@ public partial class App : Application
             var demo = new UpdateCheckResult(
                 UpdateStatus.Available,
                 new Services.UpdateInfo(
-                    "0.7.0",
-                    "DockSprig 0.7.0",
+                    "1.0.1",
+                    "DockSprig 1.0.1",
                     """
                     ### 新增
                     - 设置 → 关于里加了「检查更新」，有新版会列出更新内容
@@ -467,7 +467,7 @@ public partial class App : Application
                     - 同一语言下换输入法切不动（搜狗 / 讯飞 / 微软拼音的 HKL 是同一个）
                     """,
                     "https://github.com/ShiraiYuzen/DockSprig/releases",
-                    "https://github.com/ShiraiYuzen/DockSprig/releases/download/v0.7.0/DockSprig-0.7.0.exe",
+                    "https://github.com/ShiraiYuzen/DockSprig/releases",
                     "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     73_000_000),
                 string.Empty);
