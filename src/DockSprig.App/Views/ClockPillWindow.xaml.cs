@@ -40,7 +40,10 @@ public partial class ClockPillWindow : Window
     private const double ShadowX = 20;
     private const double ShadowY = 16;
 
-    private readonly DispatcherTimer _clockTick = new(DispatcherPriority.Background);
+    private readonly DispatcherTimer _clockTick = new(DispatcherPriority.Background)
+    {
+        Interval = TimeSpan.FromSeconds(1)
+    };
 
     private readonly MediaSessionService _media;
     private readonly AppSettings _settings;
@@ -91,7 +94,7 @@ public partial class ClockPillWindow : Window
         PositionTopCenter();
         ApplySnapshot(_media.Current);
 
-        _clockTick.IsEnabled = _settings.ShowIsland;
+        _clockTick.Start();
 
         // 关掉灵动岛：初始化完再隐藏，保证之后重新打开时窗口已经就绪
         if (!_settings.ShowIsland) Visibility = Visibility.Collapsed;
@@ -105,12 +108,7 @@ public partial class ClockPillWindow : Window
         SetPillHeight(_showingPlayer ? _settings.IslandPlayerHeight : ClockHeight);
     }
 
-    private void RefreshClock()
-    {
-        var now = DateTime.Now;
-        ClockText.Text = now.ToString("HH:mm");
-        _clockTick.Interval = TimeSpan.FromMinutes(1) - TimeSpan.FromTicks(now.Ticks % TimeSpan.TicksPerMinute);
-    }
+    private void RefreshClock() => ClockText.Text = DateTime.Now.ToString("HH:mm");
 
     /// <summary>默认位置：水平居中、贴屏幕顶边留 6px。用户拖过（IslandX/IslandY ≥ 0）就停在那。</summary>
     private void PositionTopCenter()
@@ -319,14 +317,11 @@ public partial class ClockPillWindow : Window
                 // 关掉整个隐藏；打开时重新摆好（位置 / 尺寸 / 穿透都按最新设置来）
                 if (!_settings.ShowIsland)
                 {
-                    _clockTick.Stop();
                     Visibility = Visibility.Collapsed;
                 }
                 else
                 {
                     Visibility = Visibility.Visible;
-                    RefreshClock();
-                    _clockTick.Start();
                     NonActivatingWindow.SetClickThrough(this, _settings.IslandFixed && !_showingPlayer);
                     ApplyCustomSize();
                     PositionTopCenter();

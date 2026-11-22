@@ -29,12 +29,6 @@ public partial class DockWindow : Window
     private SettingsWindow? _settingsWindow;
 
     private DispatcherTimer? _runningTimer;
-    private bool _readingProcesses;
-    private bool _refreshRequested;
-    private bool _closed;
-    private IntPtr _foregroundWindow;
-    private HashSet<string> _runningProcesses = new(StringComparer.OrdinalIgnoreCase);
-    private bool _trashOpen;
 
     // 玻璃折射（抓屏与形变都在后台线程，UI 线程只负责把结果贴上去）
     private readonly GlassRefractor _refractor = new();
@@ -79,12 +73,11 @@ public partial class DockWindow : Window
         Closed += (_, _) =>
         {
             _closed = true;
-            _runningTimer?.Stop();
+            Interlocked.Increment(ref _captureGeneration);
             _previewTimer?.Stop();
+            _runningTimer?.Stop();
             _zTimer?.Stop();
             _pauseTimer?.Stop();
-            Interlocked.Increment(ref _captureGeneration);
-            settings.PropertyChanged -= OnSettingsChanged;
             _glassRunning = false;
             _dragOverlay?.Close();
         };
@@ -113,11 +106,9 @@ public partial class DockWindow : Window
         ApplyNonActivatingStyle();
         PositionDock();
         ApplyStyle();
-        if (_runningTimer is not null) return;
         StartRunningWatcher();
         StartPauseWatcher();
         StartWindowPreviewWatcher();
-        EvaluatePause();
     }
 
     // ---------------- 窗口预览 ----------------
@@ -190,6 +181,7 @@ public partial class DockWindow : Window
 
     private DispatcherTimer? _previewTimer;
     private bool _capturing;
+    private bool _closed;
     private int _captureGeneration;
 
     private void StartWindowPreviewWatcher()
@@ -200,27 +192,18 @@ public partial class DockWindow : Window
         };
 
         _previewTimer.Tick += (_, _) => RefreshWindowPreviews();
-        UpdatePreviewWatcher();
-    }
+        _previewTimer.Start();
 
-    private void UpdatePreviewWatcher()
-    {
-        if (_previewTimer is null) return;
-        Interlocked.Increment(ref _captureGeneration);
-        _previewTimer.IsEnabled = !_paused && _vm.Settings.ShowWindowPreviews;
         RefreshWindowPreviews();
     }
 
     private void RefreshWindowPreviews()
     {
-        if (_closed || (_paused && _vm.Settings.ShowWindowPreviews)) return;
+        if (_paused) return;
 
         var before = _vm.Items.Count;
 
-        IReadOnlyList<OpenWindow> windows = _vm.Settings.ShowWindowPreviews
-            ? WindowPreviewService.Enumerate()
-            : Array.Empty<OpenWindow>();
-        if (_vm.SyncWindowPreviews(windows))
+        if (_vm.SyncWindowPreviews(WindowPreviewService.Enumerate()))
         {
             // 窗口集合变了，之前抓不出来的那些再试一次（可能之前只是被遮挡）
             WindowPreviewService.ResetFailureCache();
@@ -244,8 +227,8 @@ public partial class DockWindow : Window
     {
         if (_capturing || _closed || _paused || !_vm.Settings.ShowWindowPreviews || _vm.Settings.PreviewIconOnly) return;
 
-        var hovered = (Mouse.DirectlyOver as FrameworkElement)?.DataContext as DockItem;
-        var targets = _vm.Previews.Where(item => item.Thumbnail is null || item == hovered).ToArray();
+        var hovering = IsMouseOver;
+        var targets = _vm.Previews.Where(item => item.Thumbnail is null || hovering).ToArray();
         if (targets.Length == 0) return;
 
         var generation = _captureGeneration;
@@ -280,61 +263,18 @@ public partial class DockWindow : Window
         }
     }
 
+    /// <summary>定时扫进程和前台窗口，更新每个图标下方的运行指示条。</summary>
     private void StartRunningWatcher()
     {
+        _vm.RefreshStates();
+
         _runningTimer = new DispatcherTimer(DispatcherPriority.Background)
         {
-            Interval = TimeSpan.FromSeconds(3)
+            // 800ms：进程扫描本身很便宜，太快反而浪费；这个频率切窗口已经跟得上了
+            Interval = TimeSpan.FromMilliseconds(800)
         };
-        _runningTimer.Tick += (_, _) => RefreshRunningStates();
+        _runningTimer.Tick += (_, _) => _vm.RefreshStates();
         _runningTimer.Start();
-        RefreshRunningStates();
-    }
-
-    private async void RefreshRunningStates()
-    {
-        if (_paused || _closed) return;
-        if (_readingProcesses)
-        {
-            _refreshRequested = true;
-            return;
-        }
-
-        _readingProcesses = true;
-        try
-        {
-            do
-            {
-                _refreshRequested = false;
-                var checkTrash = _vm.Settings.ShowTrashIcon;
-                var snapshot = await Task.Run(() =>
-                    (Running: WindowQuery.ReadRunningProcessNames(), Trash: checkTrash && WindowQuery.IsTrashOpen()));
-                if (_paused || _closed) return;
-
-                _runningProcesses = snapshot.Running;
-                _trashOpen = snapshot.Trash;
-                RefreshForeground(force: true);
-            }
-            while (_refreshRequested);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[DockSprig] 读取运行状态失败：{ex.Message}");
-        }
-        finally
-        {
-            _readingProcesses = false;
-        }
-    }
-
-    private void RefreshForeground(bool force = false)
-    {
-        if (_paused || _closed) return;
-        var hwnd = NativeMethods.GetForegroundWindow();
-        if (!force && hwnd == _foregroundWindow) return;
-        _foregroundWindow = hwnd;
-        _vm.ApplyRunningStates(_runningProcesses, WindowQuery.GetForegroundProcessName(),
-            _trashOpen, _vm.Settings.ShowTrashIcon && WindowQuery.IsTrashForeground());
     }
 
     /// <summary>透明玻璃使用静态材质，保留截图和录屏可见性。</summary>
@@ -376,11 +316,7 @@ public partial class DockWindow : Window
             Interval = TimeSpan.FromMilliseconds(120)
         };
 
-        _zTimer.Tick += (_, _) =>
-        {
-            EvaluateZOrder();
-            RefreshForeground();
-        };
+        _zTimer.Tick += (_, _) => EvaluateZOrder();
         _zTimer.Start();
 
         _pauseTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -410,7 +346,7 @@ public partial class DockWindow : Window
 
     private void EvaluatePause()
     {
-        var shouldPause = !IsVisible || (_vm.Settings.PauseMode switch
+        var shouldPause = _vm.Settings.PauseMode switch
         {
             DockPauseMode.Never => false,
 
@@ -425,7 +361,7 @@ public partial class DockWindow : Window
                 WindowQuery.IsForegroundFullscreen(out _),
 
             _ => false
-        });
+        };
 
         if (shouldPause == _paused) return;
         _paused = shouldPause;
@@ -434,21 +370,41 @@ public partial class DockWindow : Window
         else ResumeBackgroundWork();
     }
 
+    /// <summary>停折射线程、停状态轮询、把大缓冲丢掉，最后把工作集还给系统。</summary>
     private void PauseBackgroundWork()
     {
+        Interlocked.Increment(ref _captureGeneration);
+        StopRefraction();
+
         _runningTimer?.Stop();
-        UpdatePreviewWatcher();
-        ApplyStyle();
+
+        // 抓屏缓冲和折射位图是按窗口尺寸算的，通常几百 KB 到 1MB，直接丢掉最干脆
         _captureBuffer = null;
         _refractionBitmap = null;
+
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        try
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            NativeMethods.SetProcessWorkingSetSize(process.Handle, new IntPtr(-1), new IntPtr(-1));
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[DockSprig] 回收工作集失败：{ex.Message}");
+        }
     }
 
     private void ResumeBackgroundWork()
     {
         ApplyStyle();
         _runningTimer?.Start();
-        RefreshRunningStates();
-        UpdatePreviewWatcher();
+        _vm.RefreshStates();
+
+        // 暂停期间窗口可能开了又关，回来先对一次
+        RefreshWindowPreviews();
     }
 
     private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
@@ -482,7 +438,8 @@ public partial class DockWindow : Window
         // 窗口预览开关：开→立刻抓一轮，关→马上撤掉那一排
         if (e.PropertyName is nameof(AppSettings.ShowWindowPreviews))
         {
-            UpdatePreviewWatcher();
+            Interlocked.Increment(ref _captureGeneration);
+            RefreshWindowPreviews();
         }
 
         // 隐私模式：开 → 丢掉已经抓到的缩略图；关 → 重新抓一轮
@@ -1707,12 +1664,12 @@ public partial class DockWindow : Window
         if (item.IsTrash)
         {
             WindowQuery.CloseTrash();
-            RefreshRunningStates();
+            _vm.RefreshStates();
             return;
         }
 
         item.Close();
-        RefreshRunningStates();
+        _vm.RefreshStates();
     }
 
     // ---------------- 增删 ----------------
@@ -1866,7 +1823,7 @@ public partial class DockWindow : Window
             case DockItemKind.Trash:
                 // 和其他应用一样：没开就打开，开着在前台就最小化，在后台就提到前台
                 if (!WindowQuery.ToggleTrash()) OpenTrash();
-                RefreshRunningStates();
+                _vm.RefreshStates();
                 break;
 
             case DockItemKind.Separator:
@@ -1876,8 +1833,8 @@ public partial class DockWindow : Window
                 // 没开 → 启动；开着且在前台 → 最小化；开着但在后台 → 提到前台
                 Services.AppWindowController.Toggle(item);
 
-                // 窗口状态刚变过，立刻刷一次指示条，不必等下一轮后台扫描
-                RefreshRunningStates();
+                // 窗口状态刚变过，立刻刷一次指示条，不然要等下一个 800ms 周期
+                _vm.RefreshStates();
                 break;
         }
 
@@ -2098,12 +2055,12 @@ public partial class DockWindow : Window
 
             // 设置页关掉，品牌图标下方的指示条也跟着灭
             _vm.IsSettingsOpen = false;
-            RefreshRunningStates();
+            _vm.RefreshStates();
         };
 
         // 打开设置 → 品牌图标亮起运行指示条
         _vm.IsSettingsOpen = true;
-        RefreshRunningStates();
+        _vm.RefreshStates();
 
         _settingsWindow.Show();
 
@@ -2326,13 +2283,13 @@ public partial class DockWindow : Window
         if (IsVisible)
         {
             Hide();
-            EvaluatePause();
+            StopRefraction();
         }
         else
         {
             Show();
             PositionDock();
-            EvaluatePause();
+            ApplyStyle();
         }
     }
 

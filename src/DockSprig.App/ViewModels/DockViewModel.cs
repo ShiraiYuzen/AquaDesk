@@ -658,13 +658,34 @@ public sealed class DockViewModel : INotifyPropertyChanged
         DockStore.Save(_configs);
     }
 
-    public void ApplyRunningStates(HashSet<string> running, string? foreground, bool trashOpen, bool trashActive)
+    /// <summary>刷新每个图标的「运行中 / 当前前台」状态。调用方控制频率，别每帧调。</summary>
+    public void RefreshStates()
     {
+        if (Items.Count == 0) return;
+
+        HashSet<string> running;
+        try
+        {
+            running = System.Diagnostics.Process.GetProcesses()
+                .Select(p => p.ProcessName)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return;
+        }
+
+        var foreground = WindowQuery.GetForegroundProcessName();
+
+        // 回收站没有独立进程，只能看窗口在不在；每轮查一次，别在循环里重复枚举
+        var trashOpen = WindowQuery.IsTrashOpen();
+        var trashActive = trashOpen && WindowQuery.IsTrashForeground();
+
         foreach (var item in Items)
         {
             if (item.IsTrash)
             {
-                item.IsRunning = trashOpen || trashActive;
+                item.IsRunning = trashOpen;
                 item.IsActive = trashActive;
                 continue;
             }
@@ -685,10 +706,12 @@ public sealed class DockViewModel : INotifyPropertyChanged
                 continue;
             }
 
-            var name = item.ProcessName;
-            var active = name is not null && string.Equals(name, foreground, StringComparison.OrdinalIgnoreCase);
-            item.IsRunning = active || (name is not null && running.Contains(name));
-            item.IsActive = active;
+            var isRunning = item.ProcessName is not null && running.Contains(item.ProcessName);
+            item.IsRunning = isRunning;
+
+            item.IsActive = isRunning
+                && foreground is not null
+                && string.Equals(item.ProcessName, foreground, StringComparison.OrdinalIgnoreCase);
         }
     }
 

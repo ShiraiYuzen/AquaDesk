@@ -535,7 +535,7 @@
                     <StackPanel Margin="28,26,28,26" >
 
                         <TextBlock Text="外观" Style="{StaticResource PageTitle}" />
-                        <TextBlock Text="更改立即生效，关闭设置时自动保存"
+                        <TextBlock Text="界面风格与玻璃质感，改完立即生效，配置自动保存"
                                    Style="{StaticResource PageSubtitle}" />
 
                         <Border CornerRadius="12" Margin="0,18,0,0" Height="148" ClipToBounds="True"
