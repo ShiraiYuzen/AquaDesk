@@ -73,16 +73,16 @@ public sealed class AppSettings : INotifyPropertyChanged
     private DockStyle _style = DockStyle.LiquidClear;
     private bool _allowStyleSwitch;
     private double _glassOpacity = 0.26;
-    private double _iconSize = 44;
+    private double _iconSize = 52;
 
     /// <summary>
     /// 图标太多时的自动收缩系数，由 DockWindow 按屏幕可用跨度现算现设。
     /// 不持久化：换显示器 / 改分辨率 / 删掉几个图标都应该重新算，不该被上次的值绑死。
     /// </summary>
     private double _autoShrinkScale = 1;
-    private double _iconGap = 8;
-    private double _cornerRadius = 20;
-    private double _magnifyMaxScale = 1.2;
+    private double _iconGap = 6;
+    private double _cornerRadius = 26;
+    private double _magnifyMaxScale = 1.55;
     private double _bottomMargin = 10;
     private bool _autoStart;
     private bool _hideTaskbar;

@@ -11,7 +11,7 @@
         Topmost="True"
         ResizeMode="NoResize"
         WindowStartupLocation="Manual"
-        Width="212"
+        Width="179"
         Height="130"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal"
@@ -175,7 +175,10 @@
                        Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
-            <!-- 固定两排位置，输入法状态和可选图标消失时保留各自的格子。 -->
+            <!-- 图标行：上排 5 项、下排 4 项，共用一套 27px 列网格
+                 以前每项各自带 margin，宽窄不一（电量那块最宽），两排又各自居中，
+                 结果排成了两套间距，上下看着参差。现在列宽写死、图标在格内居中。
+                 上下两排各自按内容宽严格居中，压在胶囊同一条中心线上。 -->
             <StackPanel VerticalAlignment="Center"
                         HorizontalAlignment="Center"
                         Margin="12,0">
@@ -183,12 +186,12 @@
                 <!-- 上排：设置 / Windows / 后台程序 / 电量(跨2格) / WiFi -->
                 <Grid x:Name="TopRow" Height="16" HorizontalAlignment="Center">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
                     </Grid.ColumnDefinitions>
 
                     <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.4.0 挪到最前面；
@@ -327,10 +330,10 @@
                      按自身内容宽在胶囊里严格居中，和上排共用同一条中心线 -->
                 <Grid x:Name="BottomRow" Height="16" HorizontalAlignment="Center" Margin="0,7,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
-                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="27" />
                     </Grid.ColumnDefinitions>
 
                     <!-- 蓝牙 -->

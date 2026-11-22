@@ -18,10 +18,9 @@ namespace DockSprig.Views;
 /// </summary>
 public partial class LaunchpadWindow : Window
 {
-    private const double CellSize = 112;
-    private int _columns = 7;
-    private int _rows = 4;
-    private int PageSize => _columns * _rows;
+    private const int Columns = 7;
+    private const int Rows = 4;
+    private const int PageSize = Columns * Rows;
     private const double DragThreshold = 8;
 
     private readonly List<LaunchpadItem> _apps = new();
@@ -75,22 +74,6 @@ public partial class LaunchpadWindow : Window
         SearchBox.Focus();
 
         StartScan();
-    }
-
-    private void OnAppGridAreaSizeChanged(object sender, SizeChangedEventArgs e)
-    {
-        var columns = Math.Max(1, Math.Min(8, (int)(e.NewSize.Width / CellSize)));
-        var rows = Math.Max(1, Math.Min(5, (int)(e.NewSize.Height / CellSize)));
-        if (AppGrid.Tag is not null && columns == _columns && rows == _rows) return;
-
-        var oldStart = _page * PageSize;
-        _columns = columns;
-        _rows = rows;
-        AppGrid.Width = columns * CellSize;
-        AppGrid.Height = rows * CellSize;
-        AppGrid.Tag = Tuple.Create(columns, rows);
-        _page = oldStart / PageSize;
-        ShowPage();
     }
 
     // ---------------- 扫描与布局 ----------------
@@ -171,7 +154,7 @@ public partial class LaunchpadWindow : Window
                     foreach (var target in entry.Items)
                     {
                         if (target is null) continue;
-                        if (!TryResolveItem(target, byTarget, out var item)) continue;
+                        if (!byTarget.TryGetValue(target, out var item)) continue;
                         if (!used.Add(target)) continue;
                         items.Add(item);
                     }
@@ -186,7 +169,7 @@ public partial class LaunchpadWindow : Window
                     }
                 }
                 else if (entry.Target is not null
-                         && TryResolveItem(entry.Target, byTarget, out var app)
+                         && byTarget.TryGetValue(entry.Target, out var app)
                          && used.Add(entry.Target))
                 {
                     _entries.Add(LaunchpadEntry.FromApp(app));
@@ -201,35 +184,6 @@ public partial class LaunchpadWindow : Window
             if (_hidden.Contains(app.Target)) continue;
             _entries.Add(LaunchpadEntry.FromApp(app));
         }
-    }
-
-    /// <summary>
-    /// 按 target 解析出一个启动台条目。
-    /// 优先用开始菜单扫描到的 app；扫不到（比如用户从桌面拖进来的 .lnk/.exe）时，
-    /// 只要文件还在，就现场按文件名 + 图标重建一个 —— 否则重开启动台时这些手加的会被丢掉。
-    /// </summary>
-    private static bool TryResolveItem(
-        string target, Dictionary<string, LaunchpadItem> byTarget, out LaunchpadItem item)
-    {
-        if (byTarget.TryGetValue(target, out var known))
-        {
-            item = known;
-            return true;
-        }
-
-        if (!string.IsNullOrEmpty(target) && (File.Exists(target) || Directory.Exists(target)))
-        {
-            item = new LaunchpadItem
-            {
-                Name = Path.GetFileNameWithoutExtension(target),
-                Target = target,
-                Icon = IconExtractor.FromShortcut(target)
-            };
-            return true;
-        }
-
-        item = null!;
-        return false;
     }
 
     private void SaveLayout()
@@ -310,7 +264,9 @@ public partial class LaunchpadWindow : Window
             _visible.Add(_filtered[i]);
         }
 
-        var pageCount = Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
+        var pageCount = _openFolder is not null
+            ? 1
+            : Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
 
         _dots.Clear();
         for (var i = 0; i < pageCount; i++)
@@ -336,6 +292,8 @@ public partial class LaunchpadWindow : Window
 
     private void TurnPage(int delta, bool animate = true)
     {
+        if (_openFolder is not null) return;
+
         var pageCount = Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
         var next = NetFxShims.Clamp(_page + delta, 0, pageCount - 1);
         if (next == _page) return;
@@ -987,7 +945,8 @@ public partial class LaunchpadWindow : Window
                 continue;
             }
 
-            if (IsAlreadyPresent(file)) continue;
+            if (_entries.Any(x => string.Equals(x.Target, file, StringComparison.OrdinalIgnoreCase))) continue;
+            if (_apps.Any(x => string.Equals(x.Target, file, StringComparison.OrdinalIgnoreCase))) continue;
 
             _hidden.Remove(file);
 
@@ -1005,52 +964,6 @@ public partial class LaunchpadWindow : Window
 
         SaveLayout();
         ApplyFilter();
-    }
-
-    /// <summary>
-    /// 启动台里是否已经有这个应用。
-    /// 从桌面拖进来的快捷方式和开始菜单里的那条路径不同（两个不同的 .lnk），
-    /// 只比路径会漏掉，所以按「真实 exe」比对 —— 指向同一个程序就算已有，不重复添加。
-    /// </summary>
-    private bool IsAlreadyPresent(string droppedFile)
-    {
-        var droppedTarget = ResolveRealTarget(droppedFile);
-
-        bool Match(string? target)
-        {
-            if (string.IsNullOrEmpty(target)) return false;
-            if (string.Equals(target, droppedFile, StringComparison.OrdinalIgnoreCase)) return true;
-
-            var real = ResolveRealTarget(target);
-            return !string.IsNullOrEmpty(real)
-                && string.Equals(real, droppedTarget, StringComparison.OrdinalIgnoreCase);
-        }
-
-        foreach (var entry in _entries)
-        {
-            if (entry.IsFolder)
-            {
-                if (entry.Items.Any(i => Match(i.Target))) return true;
-            }
-            else if (Match(entry.Target))
-            {
-                return true;
-            }
-        }
-
-        return _apps.Any(a => Match(a.Target));
-    }
-
-    /// <summary>把 .lnk 解到它指向的真实 exe；解不到（或本来就是 exe）就返回原路径。</summary>
-    private static string ResolveRealTarget(string path)
-    {
-        if (string.IsNullOrEmpty(path)) return path;
-        if (string.Equals(Path.GetExtension(path), ".lnk", StringComparison.OrdinalIgnoreCase))
-        {
-            var resolved = ShortcutResolver.ResolveTargetPath(path);
-            if (!string.IsNullOrEmpty(resolved)) return resolved;
-        }
-        return path;
     }
 
     // ---------------- 键盘 / 鼠标 ----------------
@@ -1080,10 +993,9 @@ public partial class LaunchpadWindow : Window
             case Key.Enter:
                 if (_visible.Count > 0)
                 {
-                    var selected = (e.OriginalSource as FrameworkElement)?.DataContext as LaunchpadEntry;
-                    if (selected is null || !_visible.Contains(selected)) selected = _visible[0];
-                    if (selected.IsFolder) ShowFolder(selected);
-                    else Launch(selected.Target);
+                    var first = _visible[0];
+                    if (first.IsFolder) ShowFolder(first);
+                    else Launch(first.Target);
                     e.Handled = true;
                 }
                 break;
