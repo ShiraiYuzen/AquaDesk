@@ -535,8 +535,58 @@
                     <StackPanel Margin="28,26,28,26" >
 
                         <TextBlock Text="外观" Style="{StaticResource PageTitle}" />
-                        <TextBlock Text="界面风格与玻璃质感，改完立即生效，配置自动保存"
+                        <TextBlock Text="更改立即生效，关闭设置时自动保存"
                                    Style="{StaticResource PageSubtitle}" />
+
+                        <Border CornerRadius="12" Margin="0,18,0,0" Height="148" ClipToBounds="True"
+                                AutomationProperties.Name="透明玻璃预览">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#CEDFDE" Offset="0" />
+                                    <GradientStop Color="#559195" Offset="0.52" />
+                                    <GradientStop Color="#224958" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Grid>
+                                <TextBlock Text="透明玻璃预览" Foreground="#132F36" FontWeight="SemiBold"
+                                           Margin="16,12,0,0" VerticalAlignment="Top" />
+                                <Viewbox MaxWidth="345" Margin="18,35,18,15" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Grid Width="242" Height="52">
+                                            <Control Style="{StaticResource ClearGlassPlate}" Tag="{Binding}" />
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Border Background="#F3F7F1" Width="35" Height="35" CornerRadius="8" Margin="0,0,9,0">
+                                                    <Path Data="M2,3 H8 L10,6 H18 V16 H2 Z" Stroke="#276D75" StrokeThickness="1.5"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <Border Background="#203A42" Width="35" Height="35" CornerRadius="8" Margin="0,0,9,0">
+                                                    <Path Data="M6,4 L2,9 L6,14 M12,4 L16,9 L12,14" Stroke="#A8ECF1" StrokeThickness="1.5"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <Border Background="#D1E7E0" Width="35" Height="35" CornerRadius="8" Margin="0,0,9,0">
+                                                    <Path Data="M2,3 H18 V14 H9 L5,17 V14 H2 Z" Stroke="#326D66" StrokeThickness="1.5"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <Border Background="#F8E5B7" Width="35" Height="35" CornerRadius="8">
+                                                    <Path Data="M4,2 H16 V17 H4 Z M7,6 H13 M7,9 H13 M7,12 H13" Stroke="#755323" StrokeThickness="1.4"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                            </StackPanel>
+                                            <Border Background="#A1F3FA" Width="13" Height="2" CornerRadius="1"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,44,3" />
+                                        </Grid>
+                                        <Grid Width="76" Height="52" Margin="8,0,0,0">
+                                            <Control Style="{StaticResource ClearGlassPlate}" Tag="{Binding}" />
+                                            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Path Data="M1,6 Q8,-1 15,6 M4,9 Q8,5 12,9 M7,12 H9" Stroke="#F3FAFA" StrokeThickness="1.5"
+                                                      HorizontalAlignment="Center" />
+                                                <TextBlock Text="中" Foreground="#F3FAFA" FontSize="11" HorizontalAlignment="Center" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Viewbox>
+                            </Grid>
+                        </Border>
 
                         <StackPanel Style="{StaticResource Section}" Margin="4,26,0,9">
                             <Border Style="{StaticResource SectionBar}" />

@@ -2,6 +2,49 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
+    <!-- 默认透明外观的静态玻璃。轮廓由双层细边模拟，无需采样壁纸。 -->
+    <LinearGradientBrush x:Key="ClearGlassTintBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#A5D4E6EE" Offset="0" />
+        <GradientStop Color="#662B414A" Offset="0.2" />
+        <GradientStop Color="#BD17262C" Offset="0.78" />
+        <GradientStop Color="#9A506B76" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ClearGlassRimBrush" StartPoint="0,0" EndPoint="0.13,1">
+        <GradientStop Color="#E8F7FCFF" Offset="0" />
+        <GradientStop Color="#83D2EDF4" Offset="0.24" />
+        <GradientStop Color="#408AB2BA" Offset="0.66" />
+        <GradientStop Color="#A1E1F1F3" Offset="1" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="ClearGlassInnerEdgeBrush" StartPoint="0,0" EndPoint="0,1">
+        <GradientStop Color="#5416242B" Offset="0" />
+        <GradientStop Color="#0316242B" Offset="0.36" />
+        <GradientStop Color="#0816242B" Offset="0.64" />
+        <GradientStop Color="#6B16242B" Offset="1" />
+    </LinearGradientBrush>
+
+    <Style x:Key="ClearGlassPlate" TargetType="Control">
+        <Setter Property="IsHitTestVisible" Value="False" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Control">
+                    <Grid>
+                        <Rectangle Fill="{StaticResource ClearGlassTintBrush}"
+                                   RadiusX="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}"
+                                   RadiusY="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}"
+                                   Opacity="{Binding Tag.LiquidBaseOpacity, RelativeSource={RelativeSource TemplatedParent}}" />
+                        <Rectangle Stroke="{StaticResource ClearGlassRimBrush}" StrokeThickness="1.3"
+                                   RadiusX="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}"
+                                   RadiusY="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}" />
+                        <Rectangle Margin="1.8" Stroke="{StaticResource ClearGlassInnerEdgeBrush}" StrokeThickness="1"
+                                   RadiusX="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}"
+                                   RadiusY="{Binding Tag.CornerRadius, RelativeSource={RelativeSource TemplatedParent}}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- ========== 尺寸 token ========== -->
     <sys:Double x:Key="DockIconBox">52</sys:Double>
 
