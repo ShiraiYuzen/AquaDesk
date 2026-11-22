@@ -1,11 +1,9 @@
 # DockSprig
 
-> **原名 AquaDesk。** 软件从 0.6.2 起使用 DockSprig 名称。旧名下载与发布记录仍可在本仓库找到。
-
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
-**当前源码版本：0.6.2** · 两种形态任选：单文件便携版 / 安装版 · 目标机器不用装 .NET
+**当前源码版本：1.0.0** · 两种形态任选：单文件便携版 / 安装版 · 目标机器不用装 .NET
 
 ![Release](https://img.shields.io/github/v/release/ShiraiYuzen/DockSprig?label=release&color=blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
@@ -27,7 +25,7 @@
 
 ![使用 Windows 自带应用演示启动台网格](docs/screenshots/launchpad.png)
 
-## 0.6.2 · 透明玻璃界面
+## 1.0.0 · 透明玻璃界面
 
 - Dock 和状态胶囊保留透出壁纸的玻璃底板，用细亮边模拟玻璃厚度，底板透明度仍可调。
 - 前台应用以水蓝短线标记，音量、网络、电源和输入法各用固定位置。
@@ -64,24 +62,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 - **系统集成**：开机自启、隐藏原生任务栏、隐藏桌面图标、窗口层级三档
 - **设置页**：五类分栏，改动实时预览、保存落盘
 - **检查更新**：GitHub Releases + 国内镜像兜底，启动静默检查，可跳过版本
-- **安装版（Velopack）**：应用内一键升级、打开安装目录、卸载；发布包带代码签名与 SHA256 校验
-
-## 版本索引
-
-按功能阶段整理主要版本。
-
-| 版本 | 日期 | 主题 |
-| --- | --- | --- |
-| [v0.1.0](versions/v0.1.0/README.md) | 2026-10-20 | Dock 基础：图标、悬停放大、拖放排序、单文件发布 |
-| [v0.2.0](versions/v0.2.0/README.md) | 2026-10-21 | 玻璃与启动台：液态玻璃、启动台、文件夹、WiFi/蓝牙/音量面板 |
-| [v0.3.0](versions/v0.3.0/README.md) | 2026-10-26 | 窗口预览与停靠：窗口缩略图、系统图标、四边停靠、界面缩放 |
-| [v0.4.0](versions/v0.4.0/README.md) | 2026-10-31 | 灵动岛与外观：顶栏改时间胶囊、右侧状态胶囊、外观切换、设置页重做 |
-| [v0.5.0](versions/v0.5.0/README.md) | 2026-11-01 | 系统区成型：灵动岛播放形态、状态胶囊网格、后台程序面板、浮层让位 |
-| [v0.6.0](versions/v0.6.0/README.md) | 2026-11-02 | 安装与更新：检查更新、安装版、代码签名 |
-| [v0.6.1](versions/v0.6.1/README.md) | 2026-11-02 | 外观修正：默认外观透明度可调、可完全透明、距屏幕边缘上限提升、修复拖动抖动与自启重启 |
-| v0.6.2 | 2026-11-22 | 透明玻璃界面更新与常驻性能优化 |
-
-完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
+- **安装版（Velopack）**：应用内一键升级、打开安装目录、卸载；发布包提供 SHA-256 校验
 
 ## 快速开始
 
@@ -98,17 +79,13 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 想要「装好就能自动更新」的选安装版；想要「一个 exe 走天下、手动掌控更新」的选便携版。
 
-> 安装版从 **0.6.0 这一版才开始提供**，更早的版本只有单文件便携版。
-> Windows 可能弹出 SmartScreen「未知发布者」警告，那是因为安装包用的是自签名证书，
-> **属于正常现象，文件没有问题**，照常放行即可。
-
 ### 构建安装版
 
 从仓库根目录运行以下命令，使用 `DockSprig` 作为 Velopack 产品标识和程序名称。
 
 ```powershell
 dotnet publish .\src\DockSprig.App\DockSprig.App.csproj -c Release -p:DefineConstants=VELOPACK -o .\dist\installed
-vpk pack --packId DockSprig --packTitle DockSprig --packVersion 0.6.2 --packAuthors ShiraiYuzen --packDir .\dist\installed --mainExe DockSprig.exe --runtime win-x64 --channel win-docksprig --icon .\src\DockSprig.App\Assets\DockSprig.ico
+vpk pack --packId DockSprig --packTitle DockSprig --packVersion 1.0.0 --packAuthors ShiraiYuzen --packDir .\dist\installed --mainExe DockSprig.exe --runtime win-x64 --channel win-docksprig --icon .\src\DockSprig.App\Assets\DockSprig.ico
 ```
 
 ### 升级
