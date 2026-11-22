@@ -18,9 +18,10 @@ namespace AquaDesk.Views;
 /// </summary>
 public partial class LaunchpadWindow : Window
 {
-    private const int Columns = 7;
-    private const int Rows = 4;
-    private const int PageSize = Columns * Rows;
+    private const double CellSize = 112;
+    private int _columns = 7;
+    private int _rows = 4;
+    private int PageSize => _columns * _rows;
     private const double DragThreshold = 8;
 
     private readonly List<LaunchpadItem> _apps = new();
@@ -74,6 +75,22 @@ public partial class LaunchpadWindow : Window
         SearchBox.Focus();
 
         StartScan();
+    }
+
+    private void OnAppGridAreaSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var columns = Math.Max(1, Math.Min(8, (int)(e.NewSize.Width / CellSize)));
+        var rows = Math.Max(1, Math.Min(5, (int)(e.NewSize.Height / CellSize)));
+        if (AppGrid.Tag is not null && columns == _columns && rows == _rows) return;
+
+        var oldStart = _page * PageSize;
+        _columns = columns;
+        _rows = rows;
+        AppGrid.Width = columns * CellSize;
+        AppGrid.Height = rows * CellSize;
+        AppGrid.Tag = Tuple.Create(columns, rows);
+        _page = oldStart / PageSize;
+        ShowPage();
     }
 
     // ---------------- 扫描与布局 ----------------
@@ -293,9 +310,7 @@ public partial class LaunchpadWindow : Window
             _visible.Add(_filtered[i]);
         }
 
-        var pageCount = _openFolder is not null
-            ? 1
-            : Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
+        var pageCount = Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
 
         _dots.Clear();
         for (var i = 0; i < pageCount; i++)
@@ -321,8 +336,6 @@ public partial class LaunchpadWindow : Window
 
     private void TurnPage(int delta, bool animate = true)
     {
-        if (_openFolder is not null) return;
-
         var pageCount = Math.Max(1, (_filtered.Count + PageSize - 1) / PageSize);
         var next = NetFxShims.Clamp(_page + delta, 0, pageCount - 1);
         if (next == _page) return;
@@ -1067,9 +1080,10 @@ public partial class LaunchpadWindow : Window
             case Key.Enter:
                 if (_visible.Count > 0)
                 {
-                    var first = _visible[0];
-                    if (first.IsFolder) ShowFolder(first);
-                    else Launch(first.Target);
+                    var selected = (e.OriginalSource as FrameworkElement)?.DataContext as LaunchpadEntry;
+                    if (selected is null || !_visible.Contains(selected)) selected = _visible[0];
+                    if (selected.IsFolder) ShowFolder(selected);
+                    else Launch(selected.Target);
                     e.Handled = true;
                 }
                 break;

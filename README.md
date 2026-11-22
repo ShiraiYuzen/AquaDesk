@@ -3,10 +3,18 @@
 这是 AquaDesk 的 **net48 分支**：基于 .NET 8 源码改到 .NET Framework 4.8（运行时由系统提供、进程间共享，内存与磁盘占用更低）。
 
 ![Branch](https://img.shields.io/badge/branch-net48-orange)
-![Release](https://img.shields.io/badge/release-v0.6.1--net48-blue)
+![Version](https://img.shields.io/badge/source-v0.6.2--net48-blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.8-512BD4)
 ![Size](https://img.shields.io/badge/zip-~0.7%20MB-informational)
+
+## 0.6.2 · 透明玻璃界面
+
+- Dock 和状态胶囊保留透出壁纸的玻璃底板，用细亮边模拟玻璃厚度，底板透明度仍可调。
+- 前台应用以水蓝短线标记，音量、网络、电源和输入法各用固定位置。
+- 启动台按可用空间调整行列和分页，应用名称支持两行，键盘焦点有描边。
+- 设置页保留 Windows 原生标题栏与左侧分类。「外观」页可以即时预览玻璃透明度与圆角。
+- 后台进程扫描移出 UI 线程。关闭窗口预览后停止枚举，暂停时不再强制 GC 或裁剪工作集。
 
 ## net48 版下载入口
 
@@ -23,7 +31,7 @@
 | 安装包 | ~0.7 MB 的 zip（目标机需装 .NET 4.8） | ~70 MB 单文件 exe（无需预装运行时） |
 | 更新方式 | 应用内「一键更新」（下载 zip → 原地覆盖 → 自动重启）或去 Releases 手动下载 | Velopack 安装版 + 应用内自动更新 |
 | 适合场景 | 想显著降低内存 / 磁盘占用的机器 | 追求开箱即用、自动更新、免装运行时 |
-| 状态 | 实验分支，只收 net48 相关改动 | 正式主线 |
+| 状态 | 实验分支，同步共用界面与性能改动 | 正式主线 |
 
 ## 致谢
 
@@ -31,4 +39,4 @@
 - 感谢 .NET / WPF 社区的各项开源资料与示例。
 
 > ⚠️ 这是 **net48 实验分支**。稳定的正式版（.NET 8 自包含）请去仓库 `main` 分支 / 正式 Release。
-> 源码与 .NET 8 主线分线维护，本分支只收 net48 相关改动。
+> 两个分支同步界面与性能改动，分别维护各自的运行时与更新方式。

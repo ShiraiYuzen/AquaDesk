@@ -11,7 +11,7 @@
         Topmost="True"
         ResizeMode="NoResize"
         WindowStartupLocation="Manual"
-        Width="179"
+        Width="212"
         Height="130"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Ideal"
@@ -133,95 +133,49 @@
                        Opacity="{Binding TintOpacity}"
                        Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}" />
 
-            <!-- 液态透明玻璃：极淡底色 + 顶部镜面高光 + 银白轮廓 + 细微色散 -->
-            <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
-                       Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
-                       Opacity="{Binding LiquidBaseOpacity}"
-                       IsHitTestVisible="False">
-                <Rectangle.Fill>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.12,1">
-                        <GradientStop Color="#981B2540" Offset="0" />
-                        <GradientStop Color="#C0121A2E" Offset="0.55" />
-                        <GradientStop Color="#FF05080F" Offset="1" />
-                    </LinearGradientBrush>
-                </Rectangle.Fill>
-            </Rectangle>
-
-            <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
-                       Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
-                       IsHitTestVisible="False">
-                <Rectangle.Fill>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                        <GradientStop Color="#F2FFFFFF" Offset="0" />
-                        <GradientStop Color="#8CFFFFFF" Offset="0.05" />
-                        <GradientStop Color="#00FFFFFF" Offset="0.3" />
-                    </LinearGradientBrush>
-                </Rectangle.Fill>
-            </Rectangle>
-
-            <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}" StrokeThickness="1.8"
-                       Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
-                       IsHitTestVisible="False">
-                <Rectangle.Stroke>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="0.1,1">
-                        <GradientStop Color="#F2FFFFFF" Offset="0" />
-                        <GradientStop Color="#7ADCE6F5" Offset="0.3" />
-                        <GradientStop Color="#2690A0B8" Offset="0.75" />
-                        <GradientStop Color="#40FFFFFF" Offset="1" />
-                    </LinearGradientBrush>
-                </Rectangle.Stroke>
-            </Rectangle>
-
-            <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}" StrokeThickness="0.9"
-                       Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}"
-                       IsHitTestVisible="False">
-                <Rectangle.Stroke>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#3DFF5FD2" Offset="0" />
-                        <GradientStop Color="#3D5FD2FF" Offset="0.22" />
-                        <GradientStop Color="#3D5FFFC8" Offset="0.45" />
-                        <GradientStop Color="#3DFFE45F" Offset="0.7" />
-                        <GradientStop Color="#3DFF5FD2" Offset="1" />
-                    </LinearGradientBrush>
-                </Rectangle.Stroke>
-            </Rectangle>
+            <Control Style="{StaticResource ClearGlassPlate}"
+                     Tag="{Binding}"
+                     Visibility="{Binding IsLiquidClear, Converter={StaticResource BoolToVisibility}}" />
 
             <!-- ② 顶部聚光 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Fill="{StaticResource GlassTopGlowBrush}"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
             <!-- ③ 顶边亮线 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Stroke="{StaticResource GlassTopRimBrush}"
                        StrokeThickness="2"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
             <!-- ⑤ 底部反光 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Fill="{StaticResource GlassBottomBounceBrush}"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
             <!-- ⑥ 斜向光泽 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Fill="{StaticResource GlassSheenBrush}"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
             <!-- ⑦ 玻璃边缘 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Stroke="{StaticResource GlassRimBrush}"
                        StrokeThickness="1.1"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
             <!-- ⑧ 底部内阴影 -->
             <Rectangle RadiusX="{Binding CornerRadius}" RadiusY="{Binding CornerRadius}"
                        Fill="{StaticResource GlassInnerShadowBrush}"
+                       Visibility="{Binding ShowsTint, Converter={StaticResource BoolToVisibility}}"
                        IsHitTestVisible="False" />
 
-            <!-- 图标行：上排 5 项、下排 4 项，共用一套 27px 列网格
-                 以前每项各自带 margin，宽窄不一（电量那块最宽），两排又各自居中，
-                 结果排成了两套间距，上下看着参差。现在列宽写死、图标在格内居中。
-                 上下两排各自按内容宽严格居中，压在胶囊同一条中心线上。 -->
+            <!-- 固定两排位置，输入法状态和可选图标消失时保留各自的格子。 -->
             <StackPanel VerticalAlignment="Center"
                         HorizontalAlignment="Center"
                         Margin="12,0">
@@ -229,12 +183,12 @@
                 <!-- 上排：设置 / Windows / 后台程序 / 电量(跨2格) / WiFi -->
                 <Grid x:Name="TopRow" Height="16" HorizontalAlignment="Center">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
                     </Grid.ColumnDefinitions>
 
                     <!-- 设置入口：点开设置。0.3.11 从 Dock 搬进胶囊，0.4.0 挪到最前面；
@@ -373,10 +327,10 @@
                      按自身内容宽在胶囊里严格居中，和上排共用同一条中心线 -->
                 <Grid x:Name="BottomRow" Height="16" HorizontalAlignment="Center" Margin="0,7,0,0">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
-                        <ColumnDefinition Width="27" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
+                        <ColumnDefinition Width="28" />
                     </Grid.ColumnDefinitions>
 
                     <!-- 蓝牙 -->

@@ -337,20 +337,13 @@ public partial class DockWindow : Window
             _trashOpen, _vm.Settings.ShowTrashIcon && WindowQuery.IsTrashForeground());
     }
 
-    /// <summary>按当前风格决定要不要开折射。经典风格连抓屏都不做，CPU 占用回到 0。</summary>
+    /// <summary>透明玻璃使用静态材质，保留截图和录屏可见性。</summary>
     private void ApplyStyle()
     {
         // 抓屏折射已停用（原因见 StartRefraction），现在只负责把排除标记清干净，
         // 保证三种外观下 Dock 都能正常出现在截图和录屏里。
         StopRefraction();
         RefractionLayer.Visibility = Visibility.Collapsed;
-
-        // 流动曲面只在液态透明玻璃下跑
-        if (FindResource("FlowStoryboard") is Storyboard flow)
-        {
-            if (!_paused && IsVisible && _vm.Settings.IsLiquidClear) flow.Begin(this, true);
-            else flow.Stop(this);
-        }
     }
 
     // ---------------- 按条件暂停后台工作 ----------------
@@ -885,7 +878,7 @@ public partial class DockWindow : Window
     private void OnSurfaceMouseLeave(object sender, MouseEventArgs e)
     {
         ResetMagnification();
-        FadePointerGlow(0.22);
+        if (_vm.Settings.IsLiquid) FadePointerGlow(0.22);
     }
 
     /// <summary>
@@ -894,6 +887,8 @@ public partial class DockWindow : Window
     /// </summary>
     private void UpdatePointerGlow(MouseEventArgs e)
     {
+        if (!_vm.Settings.IsLiquid) return;
+
         var width = GlassRoot.ActualWidth;
         if (width <= 0) return;
 
