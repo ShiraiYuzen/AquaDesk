@@ -20,9 +20,9 @@ public partial class App : Application
     private MediaSessionService? _media;
     private StatusDockWindow? _statusDock;
 
-    /// <summary>进程意外结束时的痕迹，方便事后定位（%TEMP%\AquaDesk-crash.log）。</summary>
+    /// <summary>进程意外结束时的痕迹，方便事后定位（%TEMP%\DockSprig-crash.log）。</summary>
     private static readonly string CrashLogPath =
-        Path.Combine(Path.GetTempPath(), "AquaDesk-crash.log");
+        Path.Combine(Path.GetTempPath(), "DockSprig-crash.log");
 
     /// <summary>
     /// 日志上限。超过就滚到 <c>.1</c>，只留一代。
@@ -176,7 +176,8 @@ public partial class App : Application
                 if (process.Id == self) continue;
 
                 // 打包出来可能叫 AquaDesk.exe，也可能叫 AquaDesk-0.2.exe，按前缀认
-                if (!process.ProcessName.StartsWith("AquaDesk", StringComparison.OrdinalIgnoreCase)) continue;
+                if (!process.ProcessName.StartsWith("DockSprig", StringComparison.OrdinalIgnoreCase)
+                    && !process.ProcessName.StartsWith("AquaDesk", StringComparison.OrdinalIgnoreCase)) continue;
 
                 // 先好好说：关主窗口，让它在 OnExit 里把任务栏还回去
                 if (process.CloseMainWindow() && process.WaitForExit(2500)) continue;
@@ -382,18 +383,18 @@ public partial class App : Application
                 UpdateStatus.Available,
                 new Services.UpdateInfo(
                     "0.7.0",
-                    "AquaDesk 0.7.0",
+                    "DockSprig 0.7.0",
                     """
                     ### 新增
                     - 设置 → 关于里加了「检查更新」，有新版会列出更新内容
                     - 安装版支持 **一键下载安装**；便携版提示网址 + `SHA256`，手动下载
-                    - 详情见 [Releases](https://github.com/ShiraiYuzen/AquaDesk/releases)
+                    - 详情见 [Releases](https://github.com/ShiraiYuzen/DockSprig/releases)
 
                     ### 修复
                     - 同一语言下换输入法切不动（搜狗 / 讯飞 / 微软拼音的 HKL 是同一个）
                     """,
-                    "https://github.com/ShiraiYuzen/AquaDesk/releases",
-                    "https://github.com/ShiraiYuzen/AquaDesk/releases/download/v0.7.0/AquaDesk-0.7.0.exe",
+                    "https://github.com/ShiraiYuzen/DockSprig/releases",
+                    "https://github.com/ShiraiYuzen/DockSprig/releases/download/v0.7.0/DockSprig-0.7.0.exe",
                     "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
                     73_000_000),
                 string.Empty);

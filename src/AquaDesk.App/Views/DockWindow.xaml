@@ -1,7 +1,7 @@
 <Window x:Class="AquaDesk.Views.DockWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="AquaDesk Dock"
+        Title="DockSprig Dock"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="{x:Null}"
@@ -73,7 +73,7 @@
             <MenuItem Header="打开我的电脑" Click="OnOpenComputer" />
             <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
-            <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
+            <MenuItem Header="退出 DockSprig" Click="OnExitApp" />
         </ContextMenu>
 
         <!-- 窗口预览：只做「切过去 / 关掉」，别把应用菜单套上去（里面的移除会算错索引） -->
@@ -86,7 +86,7 @@
         <ContextMenu x:Key="BrandIconMenu" x:Shared="False" Opened="OnMenuOpened">
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
             <MenuItem Style="{StaticResource MenuDividerItem}" />
-            <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
+            <MenuItem Header="退出 DockSprig" Click="OnExitApp" />
         </ContextMenu>
 
         <ContextMenu x:Key="TrashIconMenu" x:Shared="False" Opened="OnMenuOpened">
@@ -101,7 +101,7 @@
             <MenuItem Header="打开启动台" Click="OnMenuLaunchpad" />
             <MenuItem Style="{StaticResource MenuDividerItem}" />
             <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
-            <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
+            <MenuItem Header="退出 DockSprig" Click="OnExitApp" />
         </ContextMenu>
 
         <!-- ============ 电源菜单（左键点 Windows 图标弹出） ============
@@ -224,7 +224,7 @@
                     <MenuItem Header="新建文件夹" Click="OnMenuNewFolder" />
                     <MenuItem Style="{StaticResource MenuDividerItem}" />
                     <MenuItem Header="Dock 设置…" Click="OnOpenSettings" />
-                    <MenuItem Header="退出 AquaDesk" Click="OnExitApp" />
+                    <MenuItem Header="退出 DockSprig" Click="OnExitApp" />
                 </ContextMenu>
             </Grid.ContextMenu>
 

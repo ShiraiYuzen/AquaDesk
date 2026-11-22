@@ -262,10 +262,10 @@ public partial class SettingsWindow : Window
     private void OnUninstall(object sender, RoutedEventArgs e)
     {
         var confirm = MessageBox.Show(
-            "卸载将删除 AquaDesk 程序本体、快捷方式，以及所有配置数据\n" +
+            "卸载将删除 DockSprig 程序本体、快捷方式，以及所有配置数据\n" +
             "（settings.json、dock.json、launchpad.json 等）。\n\n" +
             "此操作不可恢复，确定卸载吗？",
-            "卸载 AquaDesk",
+            "卸载 DockSprig",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning,
             MessageBoxResult.No);
@@ -308,7 +308,7 @@ public partial class SettingsWindow : Window
         {
             App.Log("卸载：调用卸载失败", ex);
             MessageBox.Show(
-                "卸载失败，请从「设置 → 应用 → 已安装的应用」里卸载 AquaDesk。",
+                "卸载失败，请从「设置 → 应用 → 已安装的应用」里卸载 DockSprig。",
                 "卸载", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }

@@ -1,7 +1,7 @@
-﻿# 验证 AquaDesk 下载是否出自作者本人。
+﻿# 验证 DockSprig 下载是否出自作者本人。
 #
 # 三个文件放同一目录后运行：
-#   AquaDesk-<版本>.exe
+#   DockSprig-<版本>.exe
 #   SHA256SUMS.txt
 #   SHA256SUMS.txt.sig
 #
@@ -40,9 +40,10 @@ function Fail($msg) {
 }
 
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
-    $candidate = Get-ChildItem -LiteralPath $Dir -Filter "AquaDesk-*.exe" -ErrorAction SilentlyContinue |
+    $candidate = Get-ChildItem -LiteralPath $Dir -Filter "*.exe" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "DockSprig-*.exe" -or $_.Name -like "AquaDesk-*.exe" } |
         Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $candidate) { Fail "没找到 AquaDesk-*.exe，用 -ExePath 指定路径" }
+    if (-not $candidate) { Fail "没找到 DockSprig 或 AquaDesk 的 EXE，用 -ExePath 指定路径" }
     $ExePath = $candidate.FullName
 }
 

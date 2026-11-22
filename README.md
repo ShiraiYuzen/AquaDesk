@@ -1,6 +1,6 @@
 # DockSprig
 
-> **原名 AquaDesk。** 既有 GitHub Release 和安装包仍使用旧名，发布与构建记录保留在本仓库。
+> **原名 AquaDesk。** 软件从 0.6.2 起使用 DockSprig 名称。旧名下载与发布记录仍可在本仓库找到。
 
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
@@ -93,8 +93,8 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 | 产物 | 适合谁 | 说明 |
 | --- | --- | --- |
-| `AquaDesk-<版本>.exe` | 绿色软件党 / 极客 | 单文件自包含，放哪都能跑，不装 .NET；升级时提示内容 + 一键打开发布页手动下载 |
-| `AquaDesk-win-Setup.exe` | 普通用户 | 双击后选安装目录，装完自动更新 |
+| `DockSprig-<版本>.exe` | 绿色软件党 / 极客 | 单文件自包含，放哪都能跑，不装 .NET；升级时提示内容 + 一键打开发布页手动下载 |
+| `DockSprig-win-Setup.exe` | 普通用户 | 双击后选安装目录，装完自动更新 |
 
 想要「装好就能自动更新」的选安装版；想要「一个 exe 走天下、手动掌控更新」的选便携版。
 
@@ -103,6 +103,8 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 > **属于正常现象，文件没有问题**，照常放行即可。
 
 ### 升级
+
+已安装的版本继续使用原有的 Velopack 安装标识。已运行 0.6.2 旧名构建的用户，可以手动运行同版本的 DockSprig 安装包。
 
 重复启动 = **新版本接管**：双击任意一个 exe，正在跑的旧版本会自动退出、新版本接手。
 所以升级时不用先去托盘里找「退出」。
@@ -140,7 +142,7 @@ DockSprig does not send telemetry or automatically upload crash reports. Setting
 
 DockSprig automatically checks for updates using GitHub Releases. If the primary request fails, it may use third-party mirrors. The servers handling update checks and downloads can see the source IP address and standard HTTP request headers, including the app's User-Agent. DockSprig does not attach local settings, window previews, or diagnostic logs to update requests.
 
-See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) for how GitHub handles network requests. The backup services used by the updater are [ghproxy.net](https://ghproxy.net/), [gh-proxy.com](https://gh-proxy.com/), and, for some downloads in the `net48` build, [ghfast.top](https://ghfast.top/). These services handle their own requests under their own practices.
+See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) for how GitHub handles network requests. The backup services used by the updater are [ghproxy.net](https://ghproxy.net/) and [gh-proxy.com](https://gh-proxy.com/). These services handle their own requests under their own practices.
 
 ## 已知限制
 

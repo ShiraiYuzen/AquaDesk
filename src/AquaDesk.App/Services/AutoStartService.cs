@@ -196,7 +196,7 @@ public static class AutoStartService
             dynamic root = service.GetFolder("\\");
             dynamic task = service.NewTask(0);
 
-            task.RegistrationInfo.Description = "AquaDesk 开机自启（早于 Run 项启动）";
+            task.RegistrationInfo.Description = "DockSprig 开机自启（早于 Run 项启动）";
 
             // 9 = TASK_TRIGGER_LOGON
             dynamic trigger = task.Triggers.Create(9);

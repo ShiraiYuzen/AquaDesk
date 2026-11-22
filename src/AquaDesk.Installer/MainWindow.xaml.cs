@@ -21,8 +21,8 @@ public partial class MainWindow : Window
             _installedLocation = installed;
 
             // 已安装：直接给「打开安装目录 / 卸载 / 关闭」，不再跑 Setup.exe 弹那个「已安装」窗口
-            TitleText.Text = "AquaDesk 已安装";
-            SubtitleText.Text = "检测到这台电脑上已经装过 AquaDesk";
+            TitleText.Text = "DockSprig 已安装";
+            SubtitleText.Text = "检测到这台电脑上已经装过 DockSprig";
             InstallView.Visibility = Visibility.Collapsed;
             InstalledView.Visibility = Visibility.Visible;
             InstalledPathText.Text = installed;
@@ -71,11 +71,13 @@ public partial class MainWindow : Window
         }
 
         // 安装包必须和引导器放在同一目录
-        var setup = Path.Combine(AppContext.BaseDirectory, "AquaDesk-win-Setup.exe");
+        var setup = Path.Combine(AppContext.BaseDirectory, "DockSprig-win-Setup.exe");
+        if (!File.Exists(setup))
+            setup = Path.Combine(AppContext.BaseDirectory, "AquaDesk-win-Setup.exe");
 
         if (!File.Exists(setup))
         {
-            SetStatus("未找到安装包 AquaDesk-win-Setup.exe，请确认它和本程序在同一目录");
+            SetStatus("未找到安装包 DockSprig-win-Setup.exe，请确认它和本程序在同一目录");
             return;
         }
 

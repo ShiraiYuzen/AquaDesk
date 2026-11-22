@@ -4,7 +4,7 @@
 #   .\tools\trust_signing_cert.ps1 -Remove  # 卸载
 #
 # 自签名证书默认不被 Windows 信任，所以签名状态会显示「证书链终止于不受信任的根」。
-# 跑过这个脚本之后，本机再验证 AquaDesk-*.exe 的签名就会是 Valid，属性页里也显示发布者。
+# 跑过这个脚本之后，本机再验证 DockSprig-*.exe 的签名就会是 Valid，属性页里也显示发布者。
 #
 # 这只解决**你自己这台机器**；别人要看到可信发布者，得自己导入这个 .cer，
 # 或者等上游换成正式证书（SignPath 免费开源签名 / Microsoft Trusted Signing）。
@@ -43,4 +43,4 @@ else {
 
 Write-Host ""
 Write-Host "指纹 $thumbprint" -ForegroundColor DarkGray
-Write-Host "验证：Get-AuthenticodeSignature .\dist\AquaDesk-*.exe" -ForegroundColor DarkGray
+Write-Host "验证：Get-AuthenticodeSignature .\dist\DockSprig-*.exe" -ForegroundColor DarkGray

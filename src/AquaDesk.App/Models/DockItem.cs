@@ -91,7 +91,7 @@ public sealed class DockItem : INotifyPropertyChanged
 
     /// <summary>固定在最左边、不参与排序/删除/持久化的两个系统图标。</summary>
     public static DockItem CreateBrand() => new(
-        "AquaDesk", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Brand);
+        "DockSprig", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Brand);
 
     public static DockItem CreateLaunchpad() => new(
         "启动台", string.Empty, null, IconLayout.Fill, null, null, DockItemKind.Launchpad);

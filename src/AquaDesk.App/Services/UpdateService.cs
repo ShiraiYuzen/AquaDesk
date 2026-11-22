@@ -51,7 +51,7 @@ public sealed record UpdateCheckResult(
 public static class UpdateService
 {
     private const string Owner = "ShiraiYuzen";
-    private const string Repo = "AquaDesk";
+    private const string Repo = "DockSprig";
 
     private const string ApiPath = $"repos/{Owner}/{Repo}/releases/latest";
 
@@ -86,7 +86,7 @@ public static class UpdateService
         var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) };
 
         // GitHub 的 API 强制要求 User-Agent，缺了直接 403
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AquaDesk-UpdateChecker");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("DockSprig-UpdateChecker");
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
 
         return client;
@@ -129,7 +129,7 @@ public static class UpdateService
             App.Log("检查更新(Velopack)失败", ex);
 
             var diagnostics =
-                $"AquaDesk {CurrentVersionText}\n时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+                $"DockSprig {CurrentVersionText}\n时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
                 $"系统：{Environment.OSVersion}\n运行时：.NET {Environment.Version}\n\n" +
                 $"Velopack 更新源：{VelopackFeedUrl}\n异常：{ex.Message}";
 
@@ -221,7 +221,7 @@ public static class UpdateService
     private static string BuildDiagnostics(List<string> trace)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"AquaDesk {CurrentVersionText}");
+        sb.AppendLine($"DockSprig {CurrentVersionText}");
         sb.AppendLine($"时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"系统：{Environment.OSVersion}");
         sb.AppendLine($"运行时：.NET {Environment.Version}");
@@ -395,15 +395,18 @@ public static class UpdateService
                     var dig = asset.TryGetProperty("digest", out var g) ? g.GetString() : null;
                     var sz = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
 
-                    // 同一个 release 里可能挂多个 exe：便携版 AquaDesk-x.y.z.exe、Velopack 的
+                    // 同一个 release 里可能挂多个 exe：便携版 DockSprig-x.y.z.exe、Velopack 的
                     // Setup.exe / win-* 包。便携版要的是前者，排除掉 Setup / win- 前缀的。
                     if (!name.Contains("Setup", StringComparison.OrdinalIgnoreCase)
                         && !name.Contains("-win-", StringComparison.OrdinalIgnoreCase))
                     {
-                        downloadUrl = url;
-                        digest = dig;
-                        size = sz;
-                        break;
+                        if (downloadUrl is null || name.StartsWith("DockSprig-", StringComparison.OrdinalIgnoreCase))
+                        {
+                            downloadUrl = url;
+                            digest = dig;
+                            size = sz;
+                        }
+                        continue;
                     }
 
                     setupUrl ??= url;

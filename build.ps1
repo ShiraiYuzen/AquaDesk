@@ -1,9 +1,9 @@
-﻿# 打包 AquaDesk 为单文件 exe
+﻿# 打包 DockSprig 为单文件 exe
 #
 #   .\build.ps1            # 用 csproj 里的版本号
 #   .\build.ps1 -Version 0.02
 #
-# 产物：dist\AquaDesk-<版本>.exe（自包含，目标机器不用装 .NET）
+# 产物：dist\DockSprig-<版本>.exe（自包含，目标机器不用装 .NET）
 
 param(
     [string]$Version = ""
@@ -33,7 +33,7 @@ if ($Version -ne "") {
     Write-Host "版本号已改为 $Version" -ForegroundColor Cyan
 }
 
-# 安全策略会拦「在项目目录下新建 AquaDesk.exe」的写入（UnauthorizedAccessException），
+# 安全策略会拦「在项目目录下新建 DockSprig.exe」的写入（UnauthorizedAccessException），
 # 而且按具体路径逐个记规则，换个目录名也会被拦。
 # 所以发布到系统临时目录，复制完就删。
 $publishDir = Join-Path $env:TEMP ("adpub-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
@@ -45,14 +45,14 @@ Write-Host "开始发布…" -ForegroundColor Cyan
 & $dotnet publish $project -c Release -p:PublishDir="$publishDir\"
 if ($LASTEXITCODE -ne 0) { throw "发布失败" }
 
-$exe = Join-Path $publishDir "AquaDesk.exe"
+$exe = Join-Path $publishDir "DockSprig.exe"
 if (-not (Test-Path $exe)) { throw "没找到发布产物：$exe" }
 
 $info = (Get-Item $exe).VersionInfo
 $outDir = Join-Path $root "dist"
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 
-$target = Join-Path $outDir ("AquaDesk-" + $info.ProductVersion + ".exe")
+$target = Join-Path $outDir ("DockSprig-" + $info.ProductVersion + ".exe")
 
 # 打包前把 dist 里现存的 exe 全挪进 releases\ —— 回退用的，不要删。
 # 用 Move 而不是先 Copy 再覆盖：正在运行的 exe 在同卷内可以改名（Windows 允许），
@@ -62,7 +62,9 @@ $target = Join-Path $outDir ("AquaDesk-" + $info.ProductVersion + ".exe")
 $releases = Join-Path $root "releases"
 New-Item -ItemType Directory -Force -Path $releases | Out-Null
 
-Get-ChildItem $outDir -Filter "AquaDesk-*.exe" -File -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem $outDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -like "DockSprig-*.exe" -or $_.Name -like "AquaDesk-*.exe" } |
+    ForEach-Object {
     $stamp = $_.LastWriteTime.ToString("yyyyMMdd-HHmm")
     $baseName = $_.BaseName
 
@@ -153,7 +155,7 @@ Remove-Item $publishDir -Recurse -Force -ErrorAction SilentlyContinue
 
 # 归档源码：以后每个版本都留一份快照。
 # 0.3.2 之前的版本只有 exe、源码全被覆盖 —— 想补都补不回来（反编译丢 XAML，编不过）。
-$srcArchive = Join-Path $releases ("AquaDesk-" + $info.ProductVersion + "-src.zip")
+$srcArchive = Join-Path $releases ("DockSprig-" + $info.ProductVersion + "-src.zip")
 $srcStage = Join-Path $env:TEMP ("adsrc-" + [Guid]::NewGuid().ToString("N").Substring(0, 8))
 try {
     robocopy $project $srcStage /E /XD obj bin /NFL /NDL /NJH /NJS /NP | Out-Null

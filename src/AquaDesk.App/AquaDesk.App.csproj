@@ -7,7 +7,9 @@
     <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
     <RootNamespace>AquaDesk</RootNamespace>
-    <AssemblyName>AquaDesk</AssemblyName>
+    <AssemblyName>DockSprig</AssemblyName>
+    <!-- Existing Velopack shortcuts and update restarts target AquaDesk.exe. -->
+    <AssemblyName Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(DefineConstants)', '(^|;)VELOPACK(;|$)'))">AquaDesk</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -26,9 +28,9 @@
          产物名会跟着变；关掉它，本地和 CI 的产物名保持一致。 -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
-    <Product>AquaDesk</Product>
-    <AssemblyTitle>AquaDesk 姘村厜妗岄潰</AssemblyTitle>
-    <Company>AquaDesk</Company>
+    <Product>DockSprig</Product>
+    <AssemblyTitle>DockSprig</AssemblyTitle>
+    <Company>DockSprig</Company>
     <ApplicationIcon>Assets\AquaDesk.ico</ApplicationIcon>
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
 
