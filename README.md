@@ -1,11 +1,13 @@
-# AquaDesk · 水光桌面
+# DockSprig
+
+> **原名 AquaDesk。** 既有 GitHub Release 和安装包仍使用旧名，发布与构建记录保留在本仓库。
 
 > 把 macOS 的桌面质感搬到 Windows：Dock、顶部菜单栏、液态玻璃、圆角、启动台。
 > 不动系统底层，只换你看到的那一层。
 
 **当前源码版本：0.6.2** · 两种形态任选：单文件便携版 / 安装版 · 目标机器不用装 .NET
 
-![Release](https://img.shields.io/github/v/release/ShiraiYuzen/AquaDesk?label=release&color=blue)
+![Release](https://img.shields.io/github/v/release/ShiraiYuzen/DockSprig?label=release&color=blue)
 ![Platform](https://img.shields.io/badge/Windows-10%20%2F%2011-0078D6)
 ![.NET](https://img.shields.io/badge/.NET-8%20%2B%20WPF-512BD4)
 ![Size](https://img.shields.io/badge/exe-~70%20MB-informational)
@@ -23,7 +25,7 @@
 
 ## 它是什么
 
-Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。AquaDesk 不做换壁纸那种表面功夫，
+Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。DockSprig 不做换壁纸那种表面功夫，
 而是把「你看到的那一层」整个换掉：
 
 - 底部 **Dock**：磁贴化图标、悬停放大 + 邻居让位、运行指示条、窗口预览、文件夹、拖拽排序
@@ -75,7 +77,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 下载前可查看 [Code signing policy](#code-signing-policy) 和 [Privacy policy](#privacy-policy)。
 
-到 [Releases](../../releases) 页面下载，两种形态二选一：
+到 [Releases](https://github.com/ShiraiYuzen/DockSprig/releases) 页面下载，两种形态二选一：
 
 | 产物 | 适合谁 | 说明 |
 | --- | --- | --- |
@@ -101,8 +103,8 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 
 ### 从源码构建
 ```bash
-git clone https://github.com/ShiraiYuzen/AquaDesk.git
-cd AquaDesk/src/AquaDesk.App
+git clone https://github.com/ShiraiYuzen/DockSprig.git
+cd DockSprig/src/AquaDesk.App
 dotnet build -c Release
 ```
 构建产物在 `bin/Release/net8.0-windows10.0.19041.0/win-x64/`。
@@ -115,16 +117,16 @@ dotnet build -c Release
 
 ## Code signing policy
 
-AquaDesk plans to use SignPath.io for Windows code signing with a certificate from SignPath Foundation, subject to approval and setup. The intended signing process uses artifacts built from this public repository by [GitHub Actions](../../actions). Each release signing request will require manual approval.
+DockSprig plans to use SignPath.io for Windows code signing with a certificate from SignPath Foundation, subject to approval and setup. The intended signing process uses artifacts built from this public repository by [GitHub Actions](https://github.com/ShiraiYuzen/DockSprig/actions). Each release signing request will require manual approval.
 
 - Maintainer, committer, and reviewer for this repository: [ShiraiYuzen](https://github.com/ShiraiYuzen).
 - Designated release signing approver: [ShiraiYuzen](https://github.com/ShiraiYuzen).
 
 ### Privacy policy
 
-AquaDesk does not send telemetry or automatically upload crash reports. Settings and diagnostic logs are stored locally. The Dock and Launchpad use local app information, and window previews are generated on the device. When you enter a Wi-Fi password in AquaDesk, it is passed to Windows to configure the selected network.
+DockSprig does not send telemetry or automatically upload crash reports. Settings and diagnostic logs are stored locally. The Dock and Launchpad use local app information, and window previews are generated on the device. When you enter a Wi-Fi password in DockSprig, it is passed to Windows to configure the selected network.
 
-AquaDesk automatically checks for updates using GitHub Releases. If the primary request fails, it may use third-party mirrors. The servers handling update checks and downloads can see the source IP address and standard HTTP request headers, including the app's User-Agent. AquaDesk does not attach local settings, window previews, or diagnostic logs to update requests.
+DockSprig automatically checks for updates using GitHub Releases. If the primary request fails, it may use third-party mirrors. The servers handling update checks and downloads can see the source IP address and standard HTTP request headers, including the app's User-Agent. DockSprig does not attach local settings, window previews, or diagnostic logs to update requests.
 
 See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement) for how GitHub handles network requests. The backup services used by the updater are [ghproxy.net](https://ghproxy.net/), [gh-proxy.com](https://gh-proxy.com/), and, for some downloads in the `net48` build, [ghfast.top](https://ghfast.top/). These services handle their own requests under their own practices.
 
@@ -139,7 +141,7 @@ See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privac
 
 ## 其他分支
 
-- **net48 分支**（实验性）：基于本仓库源码改到 .NET Framework 4.8（系统自带、进程间共享运行时）。内存约 212 MB（本分支 ~300+ MB）、安装包仅 ~0.7 MB，适合想显著降低占用的机器；更新走应用内「一键更新」或去 Releases 手动下载。详见其 [README](https://github.com/ShiraiYuzen/AquaDesk/blob/net48/README.md)。
+- **net48 分支**（实验性）：基于本仓库源码改到 .NET Framework 4.8（系统自带、进程间共享运行时）。内存约 212 MB（本分支 ~300+ MB）、安装包仅 ~0.7 MB，适合想显著降低占用的机器；更新走应用内「一键更新」或去 Releases 手动下载。详见其 [README](https://github.com/ShiraiYuzen/DockSprig/blob/net48/README.md)。
 
 ## 许可证
 
