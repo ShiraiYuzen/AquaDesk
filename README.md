@@ -149,9 +149,11 @@ See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privac
 
 Copyright © 2026 ShiraiYuzen。此许可适用于 DockSprig 原创项目源码。第三方依赖适用各自的许可。
 
-### 历史源码许可
+### 历史版本许可
 
-本仓库中的 DockSprig（原 AquaDesk）原创源码统一采用 [MIT](LICENSE)。第三方材料适用其各自的许可。
+`main`、`net48` 和各历史版本标签中的 DockSprig 原创源码统一采用 [MIT](LICENSE)。
+
+`net48` 分支也采用 MIT。对于引用的更新脚本，授权范围详见 [`net48` 的许可说明](https://github.com/ShiraiYuzen/DockSprig/blob/net48/README.md#许可证)。
 
 ## 致谢
 
