@@ -94,7 +94,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 | 产物 | 适合谁 | 说明 |
 | --- | --- | --- |
 | `DockSprig-<版本>.exe` | 绿色软件党 / 极客 | 单文件自包含，放哪都能跑，不装 .NET；升级时提示内容 + 一键打开发布页手动下载 |
-| `DockSprig-win-Setup.exe` | 普通用户 | 双击后选安装目录，装完自动更新 |
+| `DockSprig-win-docksprig-Setup.exe` | 普通用户 | 双击后选安装目录，装完自动更新 |
 
 想要「装好就能自动更新」的选安装版；想要「一个 exe 走天下、手动掌控更新」的选便携版。
 
@@ -102,9 +102,18 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 > Windows 可能弹出 SmartScreen「未知发布者」警告，那是因为安装包用的是自签名证书，
 > **属于正常现象，文件没有问题**，照常放行即可。
 
+### 构建安装版
+
+从仓库根目录运行以下命令，使用 `DockSprig` 作为 Velopack 产品标识和程序名称。
+
+```powershell
+dotnet publish .\src\DockSprig.App\DockSprig.App.csproj -c Release -p:DefineConstants=VELOPACK -o .\dist\installed
+vpk pack --packId DockSprig --packTitle DockSprig --packVersion 0.6.2 --packAuthors ShiraiYuzen --packDir .\dist\installed --mainExe DockSprig.exe --runtime win-x64 --channel win-docksprig --icon .\src\DockSprig.App\Assets\DockSprig.ico
+```
+
 ### 升级
 
-已安装的版本继续使用原有的 Velopack 安装标识。已运行 0.6.2 旧名构建的用户，可以手动运行同版本的 DockSprig 安装包。
+DockSprig 安装版使用新的 Velopack 产品标识。已安装 AquaDesk 的用户需手动运行 DockSprig 安装包切换一次，之后可使用 DockSprig 的应用内更新。
 
 重复启动 = **新版本接管**：双击任意一个 exe，正在跑的旧版本会自动退出、新版本接手。
 所以升级时不用先去托盘里找「退出」。
@@ -118,7 +127,7 @@ Windows 的原生桌面已经很好用，但视觉语言停在另一个时代。
 ### 从源码构建
 ```bash
 git clone https://github.com/ShiraiYuzen/DockSprig.git
-cd DockSprig/src/AquaDesk.App
+cd DockSprig/src/DockSprig.App
 dotnet build -c Release
 ```
 构建产物在 `bin/Release/net8.0-windows10.0.19041.0/win-x64/`。

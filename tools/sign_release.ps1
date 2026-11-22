@@ -10,7 +10,7 @@
 [CmdletBinding()]
 param(
     [string]$DistDir = (Join-Path $PSScriptRoot "..\dist"),
-    [string]$SubjectLike = "*AquaDesk*"
+    [string]$SubjectLike = "*DockSprig*"
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,7 +47,7 @@ $sigPath = "$sums.sig"
 
 # 人读的签名信息：即使没有 README，拿到这三个文件也能核对
 $info = @(
-    "AquaDesk release signature"
+    "DockSprig release signature"
     "signer-subject   = $($cert.Subject)"
     "signer-thumbprint= $($cert.Thumbprint)"
     "signer-not-after = $($cert.NotAfter.ToString('yyyy-MM-dd'))"

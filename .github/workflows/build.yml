@@ -50,7 +50,7 @@ jobs:
             dist/SHA256SUMS.txt
 
       # SignPath 的 artifact configuration 按**固定文件名**匹配，
-      # 而我们的产物带版本号，所以这里复制一份成 AquaDesk.exe 再提交签名。
+      # 而我们的产物带版本号，所以这里复制一份成 DockSprig.exe 再提交签名。
       - name: Stage artifact for signing
         id: stage
         shell: pwsh
@@ -58,7 +58,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path sign-in | Out-Null
           $exe = Get-ChildItem dist/DockSprig-*.exe | Select-Object -First 1
           if (-not $exe) { throw "dist 里没有 exe" }
-          Copy-Item $exe.FullName sign-in/AquaDesk.exe -Force
+          Copy-Item $exe.FullName sign-in/DockSprig.exe -Force
           "version=$($exe.VersionInfo.ProductVersion)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
 
       - name: Upload artifact for signing
@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: for-signing
-          path: sign-in/AquaDesk.exe
+          path: sign-in/DockSprig.exe
 
       # ---- SignPath（审核通过后自动生效） ----
       - name: Submit signing request to SignPath
@@ -81,14 +81,14 @@ jobs:
           wait-for-completion: true
           output-artifact-directory: signed
 
-      # 签名产物叫 AquaDesk.exe，还原成发布用的带版本号名字，并重算 SHA256
+      # 签名产物叫 DockSprig.exe，还原成发布用的带版本号名字，并重算 SHA256
       - name: Rename signed artifact
         if: ${{ vars.SIGNPATH_PROJECT_SLUG != '' }}
         shell: pwsh
         run: |
           $v = "${{ steps.stage.outputs.version }}"
-          $src = Get-ChildItem signed -Recurse -Filter AquaDesk.exe | Select-Object -First 1
-          if (-not $src) { throw "签名产物里没找到 AquaDesk.exe" }
+          $src = Get-ChildItem signed -Recurse -Filter DockSprig.exe | Select-Object -First 1
+          if (-not $src) { throw "签名产物里没找到 DockSprig.exe" }
           $out = "signed-release/DockSprig-$v.exe"
           New-Item -ItemType Directory -Force -Path signed-release | Out-Null
           Copy-Item $src.FullName $out -Force

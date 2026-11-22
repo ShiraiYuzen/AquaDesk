@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
-$project = Join-Path $root "src\AquaDesk.App"
+$project = Join-Path $root "src\DockSprig.App"
 
 # 优先用用户目录里的 SDK（本项目就是这么装的），找不到就退回 PATH 里的 dotnet
 $candidates = @()
@@ -25,7 +25,7 @@ if (-not $dotnet) { $dotnet = "dotnet" }
 Write-Host "使用 SDK：$dotnet" -ForegroundColor DarkGray
 
 if ($Version -ne "") {
-    $csproj = Join-Path $project "AquaDesk.App.csproj"
+    $csproj = Join-Path $project "DockSprig.App.csproj"
     $xml = Get-Content $csproj -Raw
     $xml = $xml -replace '<Version>[^<]*</Version>', "<Version>$Version</Version>"
     $xml = $xml -replace '<InformationalVersion>[^<]*</InformationalVersion>', "<InformationalVersion>$Version</InformationalVersion>"
@@ -86,11 +86,11 @@ Get-ChildItem $outDir -Filter "*.exe" -File -ErrorAction SilentlyContinue |
 
 Copy-Item -LiteralPath $exe -Destination $target -Force
 
-# 签名：用本机的 AquaDesk 自签名证书（tools\make_signing_cert.ps1 生成）。
+# 签名：用本机的 DockSprig 自签名证书（tools\make_signing_cert.ps1 生成）。
 # 找不到证书就跳过，不阻断打包 —— 从源码构建的人也应该能出包。
 # 注意顺序：签名会改字节，SHA256 必须在签名之后算。
 $signCert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert -ErrorAction SilentlyContinue |
-    Where-Object { $_.Subject -like "*AquaDesk*" } |
+    Where-Object { $_.Subject -like "*DockSprig*" } |
     Sort-Object NotAfter -Descending |
     Select-Object -First 1
 
