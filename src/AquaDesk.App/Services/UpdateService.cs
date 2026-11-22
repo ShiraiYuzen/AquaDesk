@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
@@ -334,7 +333,7 @@ public static class UpdateService
 
     /// <summary>
     /// 下载并应用更新，一步到位。返回 null 表示成功；非 null 是错误信息。
-    /// 安装版（VELOPACK）走 Velopack 框架；便携版（net48）下载 zip → 原地替换 → 自动重启。
+    /// 仅安装版（VELOPACK）会真正下载安装；便携版不自动下载，只返回提示。
     /// </summary>
     public static async Task<string?> DownloadAndApplyAsync(UpdateInfo info, IProgress<double> progress)
     {
@@ -346,7 +345,7 @@ public static class UpdateService
 
             if (latest is null) return "没有可用的更新";
 
-            await mgr.DownloadUpdatesAsync(latest, p => progress.Report(NetFxShims.Clamp(p / 100.0, 0, 1)))
+            await mgr.DownloadUpdatesAsync(latest, p => progress.Report(Math.Clamp(p / 100.0, 0, 1)))
                 .ConfigureAwait(false);
 
             mgr.ApplyUpdatesAndRestart(latest);
@@ -358,147 +357,11 @@ public static class UpdateService
             return ex.Message;
         }
 #else
-        if (info?.ZipDownloadUrl is null)
-        {
-            return "发布包中未找到可用的 net48 更新包（.zip），请点击「打开发布页」手动下载。";
-        }
-
-        try
-        {
-            var tempZip = Path.Combine(Path.GetTempPath(), $"AquaDesk-update-{info.Version}.zip");
-            var extractDir = Path.Combine(Path.GetTempPath(), $"AquaDesk-update-{info.Version}");
-
-            await DownloadZipAsync(info.ZipDownloadUrl, tempZip, progress, info.ZipSize).ConfigureAwait(false);
-
-            if (Directory.Exists(extractDir)) Directory.Delete(extractDir, recursive: true);
-            ZipFile.ExtractToDirectory(tempZip, extractDir);
-            File.Delete(tempZip);
-
-            InstallAndRestart(extractDir);
-            return null; // InstallAndRestart 已退出并重启，正常不会返回
-        }
-        catch (Exception ex)
-        {
-            App.Log("net48 更新：下载并应用失败", ex);
-            return ex.Message;
-        }
+        // 便携版不再自动下载安装（主按钮已改成「打开发布页」）。
+        // 正常情况下不会被调用到；留一个明确提示兜底。
+        await Task.CompletedTask;
+        return "便携版不自动下载，请打开发布页手动下载";
 #endif
-    }
-
-    // ---------------- net48 / 便携版：一键自更新（下载 zip → 原地替换 → 重启） ----------------
-
-    // 国内可达的加速镜像前缀；下载直连失败时逐个尝试。
-    private static readonly string[] DownloadMirrors =
-    {
-        "https://ghfast.top/",
-        "https://gh-proxy.com/",
-        "https://ghproxy.net/"
-    };
-
-    private static IEnumerable<string> DownloadCandidates(string url)
-    {
-        yield return url;
-        if (url.Contains("github.com", StringComparison.OrdinalIgnoreCase))
-        {
-            foreach (var mirror in DownloadMirrors) yield return mirror + url;
-        }
-    }
-
-    private static async Task DownloadZipAsync(string url, string dest, IProgress<double> progress, long expectedSize)
-    {
-        Exception? lastError = null;
-
-        foreach (var candidate in DownloadCandidates(url))
-        {
-            try
-            {
-                using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("AquaDesk-Updater/1.0");
-
-                using var response = await client.GetAsync(candidate, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                var total = response.Content.Headers.ContentLength ?? expectedSize;
-                using var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                using var target = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
-
-                var buffer = new byte[81920];
-                long done = 0;
-                int read;
-
-                while ((read = await source.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) > 0)
-                {
-                    await target.WriteAsync(buffer, 0, read).ConfigureAwait(false);
-                    done += read;
-                    if (total > 0) progress.Report(NetFxShims.Clamp(done * 1.0 / total, 0, 1));
-                }
-
-                return;
-            }
-            catch (Exception ex)
-            {
-                lastError = ex;
-                try { if (File.Exists(dest)) File.Delete(dest); } catch { }
-            }
-        }
-
-        throw new Exception("下载更新包失败，网络可能受限。", lastError);
-    }
-
-    /// <summary>
-    /// 写入重启脚本：等本进程退出 → robocopy 覆盖程序文件 → 重新启动 → 自删。
-    /// 用户配置在 %AppData% 不在程序目录，robocopy 只覆盖 exe/dll，不影响配置。
-    /// </summary>
-    private static void InstallAndRestart(string extractedDir)
-    {
-        var appDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
-
-        // 目录不可写（Program Files 等）：直接引导去发布页手动更新
-        try
-        {
-            var probe = Path.Combine(appDir, "AquaDesk-write-test.tmp");
-            File.WriteAllText(probe, "1");
-            File.Delete(probe);
-        }
-        catch
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo($"https://github.com/{Owner}/{Repo}/releases")
-                {
-                    UseShellExecute = true
-                });
-            }
-            catch { }
-
-            return;
-        }
-
-        var script = Path.Combine(Path.GetTempPath(), "AquaDesk-update-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".cmd");
-        var lines = new[]
-        {
-            "@echo off",
-            ":wait",
-            "tasklist /FI \"IMAGENAME eq AquaDesk.exe\" 2>nul | find /I \"AquaDesk.exe\" >nul",
-            "if not errorlevel 1 (",
-            "  timeout /t 1 /nobreak >nul",
-            "  goto wait",
-            ")",
-            "robocopy \"" + extractedDir + "\" \"" + appDir + "\" /E /IS /IT /R:1 /W:1 /NFL /NDL /NJH /NJS >nul",
-            "start \"\" \"" + Path.Combine(appDir, "AquaDesk.exe") + "\"",
-            "rmdir /S /Q \"" + extractedDir + "\"",
-            "del \"%~f0\""
-        };
-        File.WriteAllLines(script, lines, Encoding.ASCII);
-
-        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(script)
-        {
-            UseShellExecute = false,
-            CreateNoWindow = true
-        });
-
-        // 正常退出，把覆盖 + 重启交给脚本；配置已在日常操作中保存，不会被清。
-        System.Windows.Application.Current.Shutdown();
     }
 
 #if VELOPACK

@@ -28,7 +28,7 @@
 
 - 发布列表：`https://github.com/ShiraiYuzen/DockSprig/releases`（找 tag 以 `-net48` 结尾的发布，如 `v0.6.1-net48`）
 - 解压 `AquaDesk-net48-<版本>.zip` 后双击 `AquaDesk.exe` 即可运行；目标机需已安装 **.NET Framework 4.8**。
-- 应用内「检查更新 / 一键更新」会自动认 net48 发布线（tag 以 `-net48` 结尾），不会误拉 .NET 8 的包。
+- 应用内「检查更新」会查找标签以 `-net48` 结尾的版本。发现新版本后，点击「打开发布页下载」获取 ZIP。
 
 ## 与 main 分支的区别
 
@@ -37,7 +37,7 @@
 | 运行时 | .NET Framework 4.8（系统自带、进程间共享） | .NET 8 自包含单文件（打包运行时） |
 | 内存占用 | 稳定约 212 MB | ~300+ MB |
 | 安装包 | ~0.7 MB 的 zip（目标机需装 .NET 4.8） | ~70 MB 单文件 exe（无需预装运行时） |
-| 更新方式 | 应用内「一键更新」（下载 zip → 原地覆盖 → 自动重启）或去 Releases 手动下载 | Velopack 安装版 + 应用内自动更新 |
+| 更新方式 | 应用内检查更新，打开对应的 Release 页面手动下载 ZIP | Velopack 安装版 + 应用内自动更新 |
 | 适合场景 | 想显著降低内存 / 磁盘占用的机器 | 追求开箱即用、自动更新、免装运行时 |
 | 状态 | 实验分支，同步共用界面与性能改动 | 正式主线 |
 
@@ -47,11 +47,8 @@
 
 Copyright © 2026 ShiraiYuzen。此许可涵盖由 ShiraiYuzen 拥有版权的项目源码。第三方材料适用各自的许可。
 
-`src/AquaDesk.App/Services/UpdateService.cs` 中源自 [GlassBoard-Source](https://github.com/llm147369/GlassBoard-Source) 的代码，如有，适用其权利人授予的许可。上游未明确授权的部分不包含在本项目的 MIT 授权中。
-
 ## 致谢
 
-- 一键自更新与 net48 兼容层（NetFxShims）参考自 **GlassBoard-Source**（克隆其仓库作为实现参考），感谢原作者。
 - 感谢 .NET / WPF 社区的各项开源资料与示例。
 
 > ⚠️ 这是 **net48 实验分支**。稳定的正式版（.NET 8 自包含）请去仓库 `main` 分支 / 正式 Release。
