@@ -10,6 +10,10 @@
 ![.NET](https://img.shields.io/badge/.NET%20Framework-4.8-512BD4)
 ![Size](https://img.shields.io/badge/zip-~0.7%20MB-informational)
 
+## 效果图
+
+在相同主题和演示数据下，`net48` 的 Dock、时间胶囊、状态胶囊与启动台画面和 `main` 一致。查看 [主分支效果图](https://github.com/ShiraiYuzen/DockSprig/blob/main/README.md#效果图)。
+
 ## 0.6.2 · 透明玻璃界面
 
 - Dock 和状态胶囊保留透出壁纸的玻璃底板，用细亮边模拟玻璃厚度，底板透明度仍可调。
