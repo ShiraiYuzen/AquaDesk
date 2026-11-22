@@ -133,7 +133,7 @@ public sealed class DockViewModel : INotifyPropertyChanged
 
     private static string SystemName(string kind) => kind switch
     {
-        SystemBrand => "AquaDesk",
+        SystemBrand => "DockSprig",
         SystemWindows => "Windows 菜单",
         SystemLaunchpad => "启动台",
         SystemComputer => "我的电脑",

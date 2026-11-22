@@ -304,7 +304,7 @@ public partial class UpdateDialog : Window
 
         var hash = info.Digest["sha256:".Length..].Trim();
         var fileName = string.IsNullOrWhiteSpace(info.DownloadUrl)
-            ? $"AquaDesk-{info.Version}.exe"
+            ? $"DockSprig-{info.Version}.exe"
             : Path.GetFileName(new Uri(info.DownloadUrl).LocalPath);
 
         block.Inlines.Add(new LineBreak());
@@ -347,7 +347,7 @@ public partial class UpdateDialog : Window
     {
         if (string.IsNullOrWhiteSpace(_diagnostics))
         {
-            _diagnostics = $"AquaDesk {UpdateService.CurrentVersionText}\n时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
+            _diagnostics = $"DockSprig {UpdateService.CurrentVersionText}\n时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
                            $"系统：{Environment.OSVersion}\n运行时：.NET {Environment.Version}";
         }
 

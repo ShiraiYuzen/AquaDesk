@@ -18,7 +18,7 @@ public sealed class TrayIcon : IDisposable
     {
         _toggleItem = new WinForms.ToolStripMenuItem("隐藏 Dock", null, (_, _) => toggleDock());
         var settingsItem = new WinForms.ToolStripMenuItem("Dock 设置…", null, (_, _) => openSettings());
-        var exitItem = new WinForms.ToolStripMenuItem("退出 AquaDesk", null, (_, _) => exit());
+        var exitItem = new WinForms.ToolStripMenuItem("退出 DockSprig", null, (_, _) => exit());
 
         var menu = new WinForms.ContextMenuStrip();
         menu.Items.Add(_toggleItem);
@@ -33,7 +33,7 @@ public sealed class TrayIcon : IDisposable
         _notifyIcon = new WinForms.NotifyIcon
         {
             Icon = LoadIcon(),
-            Text = "AquaDesk 水光桌面",
+            Text = "DockSprig",
             Visible = true,
             ContextMenuStrip = menu
         };

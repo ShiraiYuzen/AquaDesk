@@ -5,7 +5,7 @@
     <!-- 方案2：.NET Framework 4.8（系统自带、进程间共享），不再自包含打包运行时 -->
     <TargetFramework>net48</TargetFramework>
     <RootNamespace>AquaDesk</RootNamespace>
-    <AssemblyName>AquaDesk</AssemblyName>
+    <AssemblyName>DockSprig</AssemblyName>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -21,9 +21,9 @@
     <InformationalVersion>0.6.2-net48-exp</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
 
-    <Product>AquaDesk</Product>
-    <AssemblyTitle>AquaDesk 水光桌面</AssemblyTitle>
-    <Company>AquaDesk</Company>
+    <Product>DockSprig</Product>
+    <AssemblyTitle>DockSprig</AssemblyTitle>
+    <Company>DockSprig</Company>
     <ApplicationIcon>Assets\AquaDesk.ico</ApplicationIcon>
     <SatelliteResourceLanguages>zh-Hans</SatelliteResourceLanguages>
     <DebugType>none</DebugType>

@@ -93,9 +93,18 @@ public static class AutoStartService
             if (string.IsNullOrEmpty(sourceDir) || !Directory.Exists(sourceDir))
                 return target;
 
+            var sourceName = Path.GetFileName(sourcePath);
+            var stableName = Path.GetFileName(target);
             foreach (var srcFile in Directory.GetFiles(sourceDir))
             {
                 var name = Path.GetFileName(srcFile);
+                if (string.Equals(name, sourceName, StringComparison.OrdinalIgnoreCase))
+                    name = stableName;
+                else if (string.Equals(name, sourceName + ".config", StringComparison.OrdinalIgnoreCase))
+                    name = stableName + ".config";
+                else if (string.Equals(name, stableName, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(name, stableName + ".config", StringComparison.OrdinalIgnoreCase))
+                    continue;
                 var dstFile = Path.Combine(targetDir, name);
                 try
                 {
@@ -218,7 +227,7 @@ public static class AutoStartService
             dynamic root = service.GetFolder("\\");
             dynamic task = service.NewTask(0);
 
-            task.RegistrationInfo.Description = "AquaDesk 开机自启（早于 Run 项启动）";
+            task.RegistrationInfo.Description = "DockSprig 开机自启（早于 Run 项启动）";
 
             // 9 = TASK_TRIGGER_LOGON
             dynamic trigger = task.Triggers.Create(9);

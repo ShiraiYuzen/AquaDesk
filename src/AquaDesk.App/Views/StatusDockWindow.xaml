@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:AquaDesk.Views"
-        Title="AquaDesk Status"
+        Title="DockSprig Status"
         WindowStyle="None"
         AllowsTransparency="True"
         Background="{x:Null}"
@@ -197,7 +197,7 @@
                           Width="16" Height="9.5"
                           HorizontalAlignment="Center" VerticalAlignment="Center"
                           Cursor="Hand"
-                          ToolTip="AquaDesk 设置"
+                          ToolTip="DockSprig 设置"
                           Visibility="{Binding ShowBrandIcon, Converter={StaticResource BoolToVisibility}}"
                           MouseLeftButtonUp="OnBrandClick">
                         <Rectangle Fill="Transparent" />

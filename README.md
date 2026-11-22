@@ -1,6 +1,6 @@
 # DockSprig（.NET Framework 4.8 版）
 
-> **原名 AquaDesk。** 历史发布的 ZIP、启动文件和标签沿用原有名称。
+> **原名 AquaDesk。** 从 0.6.2 起使用 DockSprig 名称，较早版本沿用 AquaDesk。
 
 这是 DockSprig 的 **net48 分支**：基于 .NET 8 源码改到 .NET Framework 4.8（运行时由系统提供、进程间共享，内存与磁盘占用更低）。
 
@@ -27,7 +27,7 @@
 下载前可查看 [Code signing policy](https://github.com/ShiraiYuzen/DockSprig#code-signing-policy) 和 [Privacy policy](https://github.com/ShiraiYuzen/DockSprig#privacy-policy)。
 
 - 发布列表：`https://github.com/ShiraiYuzen/DockSprig/releases`（找 tag 以 `-net48` 结尾的发布，如 `v0.6.1-net48`）
-- 解压 `AquaDesk-net48-<版本>.zip` 后双击 `AquaDesk.exe` 即可运行；目标机需已安装 **.NET Framework 4.8**。
+- 解压 `DockSprig-net48-<版本>.zip` 后双击 `DockSprig.exe` 即可运行；目标机需已安装 **.NET Framework 4.8**。
 - 应用内「检查更新」会查找标签以 `-net48` 结尾的版本。发现新版本后，点击「打开发布页下载」获取 ZIP。
 
 ## 与 main 分支的区别

@@ -284,7 +284,8 @@ public static class BackgroundApps
                     // 自己的图标：直接跳过。以前用 dotnet 宿主跑过，注册的 exe 是 dotnet.exe，
                     // 只比进程 pid 拦不住，会把 AquaDesk 自己列成「托盘程序」
                     if (string.Equals(path, NetFxShims.ProcessPath, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (tooltip.Contains("AquaDesk", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (tooltip.Contains("DockSprig", StringComparison.OrdinalIgnoreCase)
+                        || tooltip.Contains("AquaDesk", StringComparison.OrdinalIgnoreCase)) continue;
 
                     list.Add(new TrayEntry(path, tooltip, snapshot));
                 }
