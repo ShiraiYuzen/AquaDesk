@@ -161,12 +161,6 @@ See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privac
 
 Copyright © 2026 ShiraiYuzen。此许可适用于 DockSprig 原创项目源码。第三方依赖适用各自的许可。
 
-### 历史版本许可
-
-`main`、`net48` 和各历史版本标签中的 DockSprig 原创源码统一采用 [MIT](LICENSE)。
-
-`net48` 分支也采用 MIT。
-
 ## 致谢
 
 界面语言参考 macOS Aqua 设计语言。所有图标均为矢量自绘或取自系统，不含第三方素材。
