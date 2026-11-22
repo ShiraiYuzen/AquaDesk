@@ -153,7 +153,7 @@ See the [GitHub Privacy Statement](https://docs.github.com/en/site-policy/privac
 
 ## 其他分支
 
-- **net48 分支**（实验性）：基于本仓库源码改到 .NET Framework 4.8（系统自带、进程间共享运行时）。内存约 212 MB（本分支 ~300+ MB）、安装包仅 ~0.7 MB，适合想显著降低占用的机器；更新走应用内「一键更新」或去 Releases 手动下载。详见其 [README](https://github.com/ShiraiYuzen/DockSprig/blob/net48/README.md)。
+- **net48 分支**（实验性）：基于本仓库源码改到 .NET Framework 4.8（系统自带、进程间共享运行时）。内存约 212 MB（本分支 ~300+ MB）、安装包仅 ~0.7 MB，适合想显著降低占用的机器；应用内可检查更新并打开对应的 Release 页面下载 ZIP。详见其 [README](https://github.com/ShiraiYuzen/DockSprig/blob/net48/README.md)。
 
 ## 许可证
 
@@ -165,7 +165,7 @@ Copyright © 2026 ShiraiYuzen。此许可适用于 DockSprig 原创项目源码�
 
 `main`、`net48` 和各历史版本标签中的 DockSprig 原创源码统一采用 [MIT](LICENSE)。
 
-`net48` 分支也采用 MIT。对于引用的更新脚本，授权范围详见 [`net48` 的许可说明](https://github.com/ShiraiYuzen/DockSprig/blob/net48/README.md#许可证)。
+`net48` 分支也采用 MIT。
 
 ## 致谢
 
